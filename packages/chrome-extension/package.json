@@ -1,0 +1,26 @@
+{
+  "name": "@inspector-jake/chrome-extension",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Chrome extension for InspectorJake",
+  "type": "module",
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "vite build",
+    "lint": "echo 'No lint configured'"
+  },
+  "dependencies": {
+    "@inspector-jake/shared": "*",
+    "swiper": "^12.0.3",
+    "vue": "^3.4.0"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.260",
+    "@vitejs/plugin-vue": "^5.0.0",
+    "@vue/test-utils": "^2.4.6",
+    "happy-dom": "^20.4.0",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.0",
+    "vitest": "^4.0.18"
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "name": "@agent-jake/inspector-jake-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for Inspector Jake - inspect web pages via Chrome DevTools",
+  "keywords": ["mcp", "chrome", "devtools", "ai", "browser", "automation", "model-context-protocol"],
+  "author": "Jacob Chapa",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/inspectorjake/inspector-jake.git",
+    "directory": "packages/mcp-server"
+  },
+  "homepage": "https://github.com/inspectorjake/inspector-jake#readme",
+  "bugs": {
+    "url": "https://github.com/inspectorjake/inspector-jake/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "main": "./dist/index.js",
+  "bin": {
+    "inspector-jake-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@inspector-jake/shared": "*",
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "uuid": "^9.0.1",
+    "ws": "^8.16.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/uuid": "^9.0.7",
+    "@types/ws": "^8.5.10",
+    "typescript": "^5.3.3",
+    "vitest": "^4.0.18"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "files": [
+    "dist"
+  ]
+}

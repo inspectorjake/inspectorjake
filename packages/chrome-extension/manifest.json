@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "Inspector Jake MCP",
+  "version": "1.0.0",
+  "description": "Inspect web pages via MCP - let AI agents see what you see in DevTools",
+  "permissions": [
+    "activeTab",
+    "tabs",
+    "scripting"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "src/background/index.js",
+    "type": "module"
+  },
+  "devtools_page": "src/devtools/devtools.html",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/content/index.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
