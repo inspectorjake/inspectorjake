@@ -510,7 +510,7 @@ async function handleScreenshot(
           height: Math.round(rect.height * dpr),
         };
       },
-      args: [payload.selector],
+      args: [payload.selector ?? null],
     });
 
     if (!result?.result) {
@@ -1055,7 +1055,7 @@ async function handleBrowserGetConsoleLogs(
 
       return filtered;
     },
-    args: [payload.types, payload.clear],
+    args: [payload.types ?? null, payload.clear ?? false],
   });
 
   return { logs: result?.result || [] };
@@ -1164,7 +1164,7 @@ async function handleBrowserClick(
         y: rect.top + rect.height / 2,
       };
     },
-    args: [payload.ref, payload.selector],
+    args: [payload.ref ?? null, payload.selector ?? null],
   });
 
   if (!result?.result || result.result.error) {
@@ -1182,7 +1182,7 @@ async function handleBrowserClick(
     // Fall back to synthetic click
     await chrome.scripting.executeScript({
       target: { tabId },
-      func: (ref: string | undefined, selector: string | undefined, button: string, clickCount: number) => {
+      func: (ref: string | null, selector: string | null, button: string, clickCount: number) => {
         let element: Element | null = null;
 
         if (ref) {
@@ -1211,7 +1211,7 @@ async function handleBrowserClick(
           }
         }
       },
-      args: [payload.ref, payload.selector, payload.button || 'left', payload.clickCount || 1],
+      args: [payload.ref ?? null, payload.selector ?? null, payload.button || 'left', payload.clickCount || 1],
     });
 
     return { success: true, message: 'Clicked element (synthetic)' };
@@ -1264,7 +1264,7 @@ async function handleBrowserType(
         }
       }
     },
-    args: [payload.ref, payload.selector, payload.clear || false],
+    args: [payload.ref ?? null, payload.selector ?? null, payload.clear ?? false],
   });
 
   // Type using CDP if possible, otherwise synthetic input
@@ -1276,7 +1276,7 @@ async function handleBrowserType(
     // Fall back to direct value setting
     await chrome.scripting.executeScript({
       target: { tabId },
-      func: (ref: string | undefined, selector: string | undefined, text: string) => {
+      func: (ref: string | null, selector: string | null, text: string) => {
         let element: Element | null = null;
 
         if (ref) {
@@ -1305,7 +1305,7 @@ async function handleBrowserType(
           element.dispatchEvent(new Event('change', { bubbles: true }));
         }
       },
-      args: [payload.ref, payload.selector, payload.text],
+      args: [payload.ref ?? null, payload.selector ?? null, payload.text],
     });
 
     return { success: true, message: 'Typed text (synthetic)' };
@@ -1373,7 +1373,7 @@ async function handleBrowserSelectOption(
 
       return { success: true, selectedValue: selectedOption.value, selectedLabel: selectedOption.text };
     },
-    args: [payload.ref, payload.selector, payload.value, payload.label, payload.index],
+    args: [payload.ref ?? null, payload.selector ?? null, payload.value ?? null, payload.label ?? null, payload.index ?? null],
   });
 
   if (!result?.result || result.result.error) {
