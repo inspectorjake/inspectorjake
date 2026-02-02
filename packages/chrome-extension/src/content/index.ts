@@ -376,7 +376,7 @@ function startPicking() {
   // Inject global cursor override (guarantees crosshair on all elements)
   cursorStyleTag = document.createElement('style');
   cursorStyleTag.id = 'inspector-jake-cursor';
-  cursorStyleTag.textContent = '* { cursor: crosshair !important; }';
+  cursorStyleTag.textContent = '* { cursor: default !important; }';
   document.head.appendChild(cursorStyleTag);
 
   document.addEventListener('mousemove', onMouseMove, true);
