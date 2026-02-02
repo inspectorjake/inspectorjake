@@ -10,9 +10,9 @@
  * Polyfill for cssEscape() that works in Node.js environments.
  */
 function cssEscape(value: string): string {
-  // Use native cssEscape if available (browser environment)
-  if (typeof CSS !== 'undefined' && typeof cssEscape === 'function') {
-    return cssEscape(value);
+  // Use native CSS.escape if available (browser environment)
+  if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
+    return CSS.escape(value);
   }
 
   // Simple polyfill for Node.js

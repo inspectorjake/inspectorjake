@@ -106,7 +106,7 @@ function buildSelectorPath(element: Element): string {
  * Build a selector for a single element.
  */
 function buildElementSelector(element: Element): string {
-  const tag = element.tagName.toLowerCase();
+  const tag = (element.tagName || 'element').toLowerCase();
 
   // Try attribute-based selectors first
   for (const attr of SELECTOR_ATTRIBUTES) {

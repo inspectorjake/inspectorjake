@@ -195,7 +195,7 @@ function getElementRole(element: Element): string {
   if (tagRole) {
     // Special handling for input types
     if (element.tagName === 'INPUT') {
-      const type = (element as HTMLInputElement).type.toLowerCase();
+      const type = ((element as HTMLInputElement).type || 'text').toLowerCase();
       if (type === 'checkbox') return 'checkbox';
       if (type === 'radio') return 'radio';
       if (type === 'button' || type === 'submit' || type === 'reset') return 'button';
