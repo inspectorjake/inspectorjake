@@ -6,7 +6,7 @@
 
 import { onMounted, onUnmounted } from 'vue';
 import type { ElementInfo } from '@inspector-jake/shared';
-import { useSelections, useConnection, usePicker, type DiscoveredSession } from './composables/index.js';
+import { useSelections, useConnection, usePicker, useLogs, LogLevel, LogSource, type DiscoveredSession } from './composables/index.js';
 
 // Initialize composables
 const {
@@ -39,6 +39,7 @@ const {
 const {
   isPicking,
   error: pickerError,
+  isCoolingDown,
   startElementPicker,
   stopElementPicker,
   highlightSelector,
@@ -47,9 +48,36 @@ const {
   cancelPicking,
 } = usePicker();
 
+const {
+  logs,
+  showLogs,
+  addLog,
+  clearLogs,
+  toggleLogs,
+} = useLogs();
+
 // Unified error from both composables
 import { computed } from 'vue';
 const error = computed(() => connectionError.value || pickerError.value);
+
+/**
+ * Wrapper for picker button click with logging.
+ */
+async function handlePickerClick() {
+  console.log('[Panel] Picker button clicked, isPicking:', isPicking.value, 'isCoolingDown:', isCoolingDown.value);
+  addLog(LogLevel.INFO, LogSource.EXT, `Picker clicked: isPicking=${isPicking.value}`);
+
+  if (isCoolingDown.value) {
+    console.log('[Panel] Cooldown active, ignoring');
+    return;
+  }
+
+  if (isPicking.value) {
+    stopElementPicker();
+  } else {
+    await startElementPicker();
+  }
+}
 
 /**
  * Connect to a session and sync selections.
@@ -78,6 +106,7 @@ async function handleMessage(message: any) {
   // Handle element picked from custom picker (click, not drag)
   if (message.type === 'ELEMENT_PICKED') {
     cancelPicking();
+    addLog(LogLevel.SUCCESS, LogSource.EXT, `Element selected: <${message.element.tagName}>`);
     await addElementSelection(message.element as ElementInfo, captureElementScreenshot);
   }
 
@@ -85,6 +114,7 @@ async function handleMessage(message: any) {
   if (message.type === 'SCREENSHOT_REGION_SELECTED') {
     cancelPicking();
     const { rect } = message;
+    addLog(LogLevel.SUCCESS, LogSource.EXT, `Screenshot region: ${rect.width}×${rect.height}`);
     const image = await captureElementScreenshot(rect);
     if (image) {
       addScreenshotSelection(rect, image);
@@ -93,6 +123,7 @@ async function handleMessage(message: any) {
 
   // Handle picker cancelled (Escape pressed)
   if (message.type === 'PICKER_CANCELLED') {
+    addLog(LogLevel.INFO, LogSource.EXT, 'Picker cancelled');
     cancelPicking();
   }
 
@@ -122,6 +153,7 @@ function formatElementDisplay(el: { tagName: string; id?: string | null }): stri
 
 onMounted(async () => {
   chrome.runtime.onMessage.addListener(handleMessage);
+  addLog(LogLevel.INFO, LogSource.EXT, 'Inspector Jake initialized');
   await Promise.all([
     getConnectionStatus(),
     scanForSessions(),
@@ -146,7 +178,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="panel">
+  <div class="panel" @click.self="isPicking && stopElementPicker()">
     <!-- Header -->
     <header class="header">
       <div class="logo">
@@ -160,9 +192,9 @@ onUnmounted(() => {
           stroke-width="2"
           stroke-linecap="round"
           stroke-linejoin="round"
-          @click="isPicking ? stopElementPicker() : startElementPicker()"
-          :class="{ active: isPicking }"
-          :title="isPicking ? 'Stop picking (Esc)' : 'Select element or drag region'"
+          @click="handlePickerClick"
+          :class="{ active: isPicking, disabled: isCoolingDown }"
+          :title="isCoolingDown ? 'Please wait...' : (isPicking ? 'Stop picking (Esc)' : 'Select element or drag region')"
         >
           <circle cx="10" cy="10" r="7"/>
           <path d="m21 21-5.2-5.2"/>
@@ -178,7 +210,81 @@ onUnmounted(() => {
         />
         <h1 class="title">Jake MCP</h1>
       </div>
+      <!-- Logs Toggle -->
+      <div class="header-actions">
+        <svg
+          class="header-icon logs-toggle"
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          @click.stop="toggleLogs"
+          :class="{ active: showLogs, 'has-errors': logs.some(l => l.level === 'error') }"
+          title="Toggle logs"
+        >
+          <polyline points="4 17 10 11 4 5"/>
+          <line x1="12" y1="19" x2="20" y2="19"/>
+        </svg>
+      </div>
     </header>
+
+    <!-- Logs Panel - Retro Terminal Style -->
+    <Transition name="logs-slide">
+      <section v-if="showLogs" class="logs-panel">
+        <div class="logs-header">
+          <div class="logs-title">
+            <span class="logs-title-icon">▸</span>
+            <span class="logs-title-text">SYSTEM LOGS</span>
+            <span class="logs-count">{{ logs.length }}</span>
+          </div>
+          <div class="logs-actions">
+            <button class="logs-btn" @click="clearLogs" title="Clear logs">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+              </svg>
+            </button>
+            <button class="logs-btn" @click="toggleLogs" title="Close">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="logs-terminal">
+          <!-- Scanline overlay for CRT effect -->
+          <div class="logs-scanlines"></div>
+
+          <div class="logs-content" ref="logsContent">
+            <TransitionGroup name="log-entry">
+              <div
+                v-for="log in logs"
+                :key="log.id"
+                class="log-line"
+                :class="[`level-${log.level}`, `source-${log.source}`]"
+              >
+                <span class="log-time">{{ log.time }}</span>
+                <span class="log-source">[{{ log.source.toUpperCase() }}]</span>
+                <span class="log-level">{{ log.level.toUpperCase().padEnd(5) }}</span>
+                <span class="log-msg">{{ log.message }}</span>
+              </div>
+            </TransitionGroup>
+
+            <!-- Blinking cursor at bottom -->
+            <div class="log-cursor">
+              <span class="cursor-prompt">▸</span>
+              <span class="cursor-block"></span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </Transition>
 
     <!-- Connection Status Card -->
     <section class="section">
@@ -329,9 +435,10 @@ onUnmounted(() => {
           <!-- Add selection button in grid -->
           <button
             class="selection-add"
-            :class="{ active: isPicking }"
-            @click="isPicking ? stopElementPicker() : startElementPicker()"
-            :title="isPicking ? 'Cancel (Esc)' : 'Add selection'"
+            :class="{ active: isPicking, disabled: isCoolingDown }"
+            :disabled="isCoolingDown"
+            @click="handlePickerClick"
+            :title="isCoolingDown ? 'Please wait...' : (isPicking ? 'Cancel (Esc)' : 'Add selection')"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M12 5v14"/>
@@ -373,8 +480,8 @@ onUnmounted(() => {
         <div
           v-else-if="selections.length === 0"
           class="selection-placeholder"
-          :class="{ active: isPicking }"
-          @click="isPicking ? stopElementPicker() : startElementPicker()"
+          :class="{ active: isPicking, disabled: isCoolingDown }"
+          @click="handlePickerClick"
         >
           <svg class="selection-placeholder-icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="11" cy="11" r="8"/>
@@ -454,6 +561,12 @@ onUnmounted(() => {
   border-color: var(--accent-green);
   border-style: solid;
   animation: pulse 1s ease-in-out infinite;
+}
+
+.picker-icon.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .logo-icon {
@@ -860,6 +973,13 @@ onUnmounted(() => {
   animation: pulse 1s ease-in-out infinite;
 }
 
+.selection-add.disabled,
+.selection-add:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 /* Expanded detail panel */
 .selection-detail {
   display: flex;
@@ -970,6 +1090,12 @@ onUnmounted(() => {
   animation: pulse 1s ease-in-out infinite;
 }
 
+.selection-placeholder.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 .selection-placeholder-icon {
   color: var(--text-muted);
   transition: all 150ms ease;
@@ -984,5 +1110,294 @@ onUnmounted(() => {
 .selection-placeholder-hint {
   font-size: 11px;
   color: var(--text-muted);
+}
+
+/* ==========================================================================
+   LOGS PANEL - RETRO TERMINAL AESTHETIC
+   ========================================================================== */
+
+/* Header icon for logs toggle */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-icon {
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.header-icon:hover {
+  color: var(--accent-cyan);
+  background: rgba(6, 182, 212, 0.1);
+}
+
+.header-icon.active {
+  color: var(--accent-cyan);
+  filter: drop-shadow(0 0 4px var(--accent-cyan));
+}
+
+.header-icon.has-errors {
+  animation: error-pulse 2s ease-in-out infinite;
+}
+
+@keyframes error-pulse {
+  0%, 100% { color: var(--text-muted); }
+  50% { color: var(--accent-red); filter: drop-shadow(0 0 6px var(--accent-red)); }
+}
+
+/* Logs Panel Container */
+.logs-panel {
+  background: linear-gradient(180deg, #0a0f14 0%, #0d1117 100%);
+  border: 1px solid rgba(6, 182, 212, 0.2);
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow:
+    0 0 20px rgba(6, 182, 212, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.02);
+}
+
+/* Logs Header */
+.logs-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: rgba(6, 182, 212, 0.05);
+  border-bottom: 1px solid rgba(6, 182, 212, 0.15);
+}
+
+.logs-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: var(--accent-cyan);
+  text-shadow: 0 0 8px rgba(6, 182, 212, 0.5);
+}
+
+.logs-title-icon {
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+.logs-count {
+  padding: 2px 6px;
+  background: rgba(6, 182, 212, 0.15);
+  border-radius: 4px;
+  font-size: 9px;
+  color: var(--text-muted);
+}
+
+.logs-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.logs-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: transparent;
+  border: 1px solid rgba(100, 116, 139, 0.3);
+  border-radius: 4px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.logs-btn:hover {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: var(--accent-red);
+  color: var(--accent-red);
+}
+
+/* Terminal Container */
+.logs-terminal {
+  position: relative;
+  max-height: 240px;
+  overflow: hidden;
+}
+
+/* CRT Scanlines Effect */
+.logs-scanlines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 0, 0, 0.15) 2px,
+    rgba(0, 0, 0, 0.15) 4px
+  );
+  z-index: 10;
+}
+
+/* Scrollable Content */
+.logs-content {
+  height: 100%;
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 8px 12px;
+  font-family: 'JetBrains Mono', 'SF Mono', 'Fira Code', 'Consolas', monospace;
+  font-size: 11px;
+  line-height: 1.6;
+
+  /* Custom scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: var(--accent-cyan) transparent;
+}
+
+.logs-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.logs-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.logs-content::-webkit-scrollbar-thumb {
+  background: rgba(6, 182, 212, 0.3);
+  border-radius: 3px;
+}
+
+.logs-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(6, 182, 212, 0.5);
+}
+
+/* Individual Log Line */
+.log-line {
+  display: flex;
+  gap: 8px;
+  padding: 2px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.log-time {
+  color: #4a5568;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.log-source {
+  flex-shrink: 0;
+  font-size: 9px;
+  padding: 1px 4px;
+  border-radius: 2px;
+  font-weight: 600;
+}
+
+.source-ext .log-source {
+  color: var(--accent-purple);
+  background: rgba(168, 85, 247, 0.1);
+}
+
+.source-page .log-source {
+  color: var(--accent-blue);
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.source-mcp .log-source {
+  color: var(--accent-cyan);
+  background: rgba(6, 182, 212, 0.1);
+}
+
+.log-level {
+  flex-shrink: 0;
+  font-size: 9px;
+  font-weight: 700;
+  min-width: 40px;
+}
+
+.level-debug .log-level { color: #6b7280; }
+.level-info .log-level { color: var(--accent-cyan); }
+.level-warn .log-level { color: var(--accent-amber); text-shadow: 0 0 4px rgba(245, 158, 11, 0.3); }
+.level-error .log-level { color: var(--accent-red); text-shadow: 0 0 4px rgba(239, 68, 68, 0.4); }
+.level-success .log-level { color: var(--accent-green); text-shadow: 0 0 4px rgba(34, 197, 94, 0.3); }
+
+.log-msg {
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.level-error .log-msg { color: rgba(239, 68, 68, 0.9); }
+.level-warn .log-msg { color: rgba(245, 158, 11, 0.85); }
+
+/* Blinking Cursor */
+.log-cursor {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  color: var(--accent-cyan);
+  opacity: 0.7;
+}
+
+.cursor-prompt {
+  font-size: 10px;
+}
+
+.cursor-block {
+  width: 8px;
+  height: 14px;
+  background: var(--accent-cyan);
+  animation: cursor-blink 1s step-end infinite;
+}
+
+@keyframes cursor-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* Entry Animation */
+.log-entry-enter-active {
+  animation: log-slide-in 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes log-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Panel Slide Animation */
+.logs-slide-enter-active,
+.logs-slide-leave-active {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.logs-slide-enter-from,
+.logs-slide-leave-to {
+  opacity: 0;
+  max-height: 0;
+  transform: translateY(-8px);
+}
+
+.logs-slide-enter-to,
+.logs-slide-leave-from {
+  opacity: 1;
+  max-height: 300px;
+  transform: translateY(0);
 }
 </style>

@@ -21,6 +21,59 @@ import {
 console.log("[Jake MCP] Content script loaded");
 
 // ============================================================================
+// Cleanup stale content script artifacts
+// ============================================================================
+
+// Global flag to disable orphaned handlers from old content scripts
+const CONTENT_SCRIPT_VERSION = Date.now();
+(window as any).__jakeMcpVersion = CONTENT_SCRIPT_VERSION;
+
+// Remove any existing overlays from previous script instances
+function cleanupStaleOverlays() {
+  const staleOverlays = [
+    'inspector-jake-highlight',
+    'inspector-jake-label',
+    'jake-mcp-drag-region',
+    'inspector-jake-region-overlay',
+    'inspector-jake-region-box',
+    'inspector-jake-region-label',
+    'inspector-jake-cursor',
+  ];
+
+  staleOverlays.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.remove();
+      console.log(`[Jake MCP] Cleaned up stale overlay: ${id}`);
+    }
+  });
+}
+
+cleanupStaleOverlays();
+
+/**
+ * Check if this script instance is the current active one.
+ * Old orphaned scripts will fail this check and exit early.
+ */
+function isCurrentVersion(): boolean {
+  return (window as any).__jakeMcpVersion === CONTENT_SCRIPT_VERSION;
+}
+
+/**
+ * Safely send message to background - handles invalidated extension context.
+ * Chrome.runtime becomes undefined when extension is reloaded/updated.
+ */
+function safeSendMessage(message: any): void {
+  try {
+    if (chrome.runtime?.id) {
+      chrome.runtime.sendMessage(message);
+    }
+  } catch (e) {
+    console.warn('[Jake MCP] Extension context invalidated - reload page to reconnect');
+  }
+}
+
+// ============================================================================
 // Element Picker State
 // ============================================================================
 
@@ -28,6 +81,7 @@ let isPicking = false;
 let hoveredElement: Element | null = null;
 let highlightOverlay: HTMLDivElement | null = null;
 let labelOverlay: HTMLDivElement | null = null;
+let cursorStyleTag: HTMLStyleElement | null = null;
 
 // ============================================================================
 // Highlight Overlay
@@ -82,8 +136,8 @@ function updateHighlight(el: Element) {
   highlightOverlay.style.width = `${rect.width}px`;
   highlightOverlay.style.height = `${rect.height}px`;
 
-  // Build label text
-  let label = el.tagName.toLowerCase();
+  // Build label text (handle SVG/namespaced elements where tagName might be undefined)
+  let label = (el.tagName || 'element').toLowerCase();
   if ((el as HTMLElement).id) {
     label += `#${(el as HTMLElement).id}`;
   } else if (el.className && typeof el.className === 'string') {
@@ -147,6 +201,8 @@ function onMouseMove(e: MouseEvent) {
 
     if (dx > DRAG_THRESHOLD || dy > DRAG_THRESHOLD) {
       isDragging = true;
+      // Switch to crosshair cursor for region selection
+      document.body.style.cursor = 'crosshair';
       // Hide element highlight during drag - show region instead
       hideHighlight();
       updateDragRegion(dragStartPos, e);
@@ -186,6 +242,7 @@ function onMouseDown(e: MouseEvent) {
 
 function onMouseUp(e: MouseEvent) {
   if (!isPicking || !dragStartPos) return;
+  if (!isCurrentVersion()) return; // Orphaned script check
 
   e.preventDefault();
   e.stopPropagation();
@@ -202,7 +259,7 @@ function onMouseUp(e: MouseEvent) {
 
     // Only capture if region is big enough
     if (rect.width > 20 && rect.height > 20) {
-      chrome.runtime.sendMessage({
+      safeSendMessage({
         type: 'SCREENSHOT_REGION_SELECTED',
         rect,
       });
@@ -215,7 +272,7 @@ function onMouseUp(e: MouseEvent) {
     const element = hoveredElement;
     const info = (window as any).__jakesVibe.getElementInfo(element);
 
-    chrome.runtime.sendMessage({
+    safeSendMessage({
       type: 'ELEMENT_PICKED',
       element: info,
     });
@@ -229,14 +286,24 @@ function onMouseUp(e: MouseEvent) {
 
 function onKeyDown(e: KeyboardEvent) {
   if (!isPicking) return;
+  if (!isCurrentVersion()) return; // Orphaned script check
 
   // Escape to cancel
   if (e.key === 'Escape') {
     e.preventDefault();
     hideDragRegion();
     stopPicking();
-    chrome.runtime.sendMessage({ type: 'PICKER_CANCELLED' });
+    safeSendMessage({ type: 'PICKER_CANCELLED' });
   }
+}
+
+function onClick(e: MouseEvent) {
+  if (!isPicking) return;
+  if (!isCurrentVersion()) return; // Orphaned script check
+  // Prevent default click action (navigation, form submit, etc.)
+  e.preventDefault();
+  e.stopPropagation();
+  e.stopImmediatePropagation();
 }
 
 // ============================================================================
@@ -296,22 +363,28 @@ function removeDragRegionOverlay() {
 // ============================================================================
 
 function startPicking() {
+  console.log('[Jake MCP Content] startPicking() called, current isPicking:', isPicking);
   if (isPicking) return;
 
   isPicking = true;
+  console.log('[Jake MCP Content] isPicking set to true, adding event listeners');
   dragStartPos = null;
   isDragging = false;
 
   createHighlightOverlay();
 
+  // Inject global cursor override (guarantees crosshair on all elements)
+  cursorStyleTag = document.createElement('style');
+  cursorStyleTag.id = 'inspector-jake-cursor';
+  cursorStyleTag.textContent = '* { cursor: crosshair !important; }';
+  document.head.appendChild(cursorStyleTag);
+
   document.addEventListener('mousemove', onMouseMove, true);
   document.addEventListener('mouseleave', onMouseLeave, true);
   document.addEventListener('mousedown', onMouseDown, true);
   document.addEventListener('mouseup', onMouseUp, true);
+  document.addEventListener('click', onClick, true);
   document.addEventListener('keydown', onKeyDown, true);
-
-  // Change cursor to crosshair
-  document.body.style.cursor = 'crosshair';
 }
 
 function stopPicking() {
@@ -326,13 +399,18 @@ function stopPicking() {
   document.removeEventListener('mouseleave', onMouseLeave, true);
   document.removeEventListener('mousedown', onMouseDown, true);
   document.removeEventListener('mouseup', onMouseUp, true);
+  document.removeEventListener('click', onClick, true);
   document.removeEventListener('keydown', onKeyDown, true);
 
   hideHighlight();
   removeHighlightOverlay();
   removeDragRegionOverlay();
 
-  // Restore cursor
+  // Remove cursor override
+  if (cursorStyleTag) {
+    cursorStyleTag.remove();
+    cursorStyleTag = null;
+  }
   document.body.style.cursor = '';
 }
 
@@ -477,6 +555,7 @@ function onRegionMouseMove(e: MouseEvent) {
 
 function onRegionMouseUp(e: MouseEvent) {
   if (!regionSelection.isActive || !regionSelection.isDrawing) return;
+  if (!isCurrentVersion()) return; // Orphaned script check
 
   regionSelection.isDrawing = false;
 
@@ -492,7 +571,7 @@ function onRegionMouseUp(e: MouseEvent) {
   }
 
   // Request screenshot from background and send back with region info
-  chrome.runtime.sendMessage({
+  safeSendMessage({
     type: 'CAPTURE_REGION_SCREENSHOT',
     rect: { x, y, width, height },
   });
@@ -502,11 +581,12 @@ function onRegionMouseUp(e: MouseEvent) {
 
 function onRegionKeyDown(e: KeyboardEvent) {
   if (!regionSelection.isActive) return;
+  if (!isCurrentVersion()) return; // Orphaned script check
 
   if (e.key === 'Escape') {
     e.preventDefault();
     stopRegionSelection();
-    chrome.runtime.sendMessage({ type: 'REGION_CANCELLED' });
+    safeSendMessage({ type: 'REGION_CANCELLED' });
   }
 }
 
@@ -549,37 +629,44 @@ function stopRegionSelection() {
 // Message Listener
 // ============================================================================
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  switch (message.type) {
-    case 'START_ELEMENT_PICKER':
-      startPicking();
-      sendResponse({ success: true });
-      break;
-    case 'STOP_ELEMENT_PICKER':
-      stopPicking();
-      sendResponse({ success: true });
-      break;
-    case 'HIGHLIGHT_SELECTOR':
-      highlightBySelector(message.selector);
-      sendResponse({ success: true });
-      break;
-    case 'CLEAR_HIGHLIGHT':
-      hideHighlight();
-      sendResponse({ success: true });
-      break;
-    case 'START_REGION_SELECTION':
-      startRegionSelection();
-      sendResponse({ success: true });
-      break;
-    case 'STOP_REGION_SELECTION':
-      stopRegionSelection();
-      sendResponse({ success: true });
-      break;
-    default:
-      sendResponse({ success: false, error: 'Unknown message type' });
-  }
-  return true;
-});
+// Only add listener if extension context is valid
+if (chrome.runtime?.id) {
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    console.log('[Jake MCP Content] Received message:', message.type);
+
+    switch (message.type) {
+      case 'START_ELEMENT_PICKER':
+        console.log('[Jake MCP Content] Starting picker...');
+        startPicking();
+        console.log('[Jake MCP Content] Picker started, isPicking:', isPicking);
+        sendResponse({ success: true });
+        break;
+      case 'STOP_ELEMENT_PICKER':
+        stopPicking();
+        sendResponse({ success: true });
+        break;
+      case 'HIGHLIGHT_SELECTOR':
+        highlightBySelector(message.selector);
+        sendResponse({ success: true });
+        break;
+      case 'CLEAR_HIGHLIGHT':
+        hideHighlight();
+        sendResponse({ success: true });
+        break;
+      case 'START_REGION_SELECTION':
+        startRegionSelection();
+        sendResponse({ success: true });
+        break;
+      case 'STOP_REGION_SELECTION':
+        stopRegionSelection();
+        sendResponse({ success: true });
+        break;
+      default:
+        sendResponse({ success: false, error: 'Unknown message type' });
+    }
+    return true;
+  });
+}
 
 // ============================================================================
 // A11y Path Generation (uses shared utilities)
@@ -630,11 +717,11 @@ function buildA11yPath(el: Element): string {
   let current: Element | null = el;
 
   while (current && current !== document.body && current !== document.documentElement) {
-    const role = current.getAttribute('role') || getImplicitRole(current);
+    const role = current.getAttribute('role') || getImplicitRole(current.tagName);
     const name = getAccessibleName(current);
     const selector = buildSimpleSelector(current);
 
-    let node = `- ${role || current.tagName.toLowerCase()}`;
+    let node = `- ${role || (current.tagName || 'element').toLowerCase()}`;
     if (name) {
       // Truncate and escape name
       const truncated = name.slice(0, 50).replace(/"/g, '\\"');
@@ -672,7 +759,7 @@ function buildA11yPath(el: Element): string {
     let current: Element | null = el;
 
     while (current && current !== document.body) {
-      let selector = current.tagName.toLowerCase();
+      let selector = (current.tagName || 'element').toLowerCase();
 
       // Add classes for specificity
       if (current.className && typeof current.className === 'string') {
@@ -708,7 +795,7 @@ function buildA11yPath(el: Element): string {
     const rect = el.getBoundingClientRect();
 
     return {
-      tagName: el.tagName.toLowerCase(),
+      tagName: (el.tagName || 'element').toLowerCase(),
       id: el.id || null,
       className: el.className || null,
       selector: this.computeSelector(el),

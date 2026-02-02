@@ -13,6 +13,7 @@ export function usePicker() {
   // Core state
   const isPicking = ref(false);
   const error = ref<string | null>(null);
+  const isCoolingDown = ref(false);
 
   /**
    * Get current tab ID from DevTools context.
@@ -26,8 +27,13 @@ export function usePicker() {
    * Sends message to content script; injects if not present.
    */
   async function startElementPicker(): Promise<void> {
+    console.log('[usePicker] startElementPicker called');
+
     const tabId = getTabId();
+    console.log('[usePicker] tabId:', tabId);
+
     if (!tabId) {
+      console.log('[usePicker] ERROR: No tabId');
       error.value = 'No inspected tab';
       return;
     }
@@ -36,18 +42,25 @@ export function usePicker() {
     error.value = null;
 
     try {
+      console.log('[usePicker] Sending START_ELEMENT_PICKER to tab', tabId);
       // Send message to content script to start picking
       await chrome.tabs.sendMessage(tabId, { type: 'START_ELEMENT_PICKER' });
+      console.log('[usePicker] Message sent successfully');
     } catch (err) {
+      console.log('[usePicker] First sendMessage failed:', err);
       // Content script might not be injected yet, inject it
       try {
+        console.log('[usePicker] Injecting content script...');
         await chrome.scripting.executeScript({
           target: { tabId },
           files: ['src/content/index.js'],
         });
+        console.log('[usePicker] Script injected, retrying message...');
         // Try again
         await chrome.tabs.sendMessage(tabId, { type: 'START_ELEMENT_PICKER' });
+        console.log('[usePicker] Retry successful');
       } catch (injectErr) {
+        console.log('[usePicker] FAILED to inject/retry:', injectErr);
         error.value = 'Failed to start element picker';
         isPicking.value = false;
         log.error('usePicker', 'Failed to start element picker:', injectErr);
@@ -111,6 +124,13 @@ export function usePicker() {
         rect,
         tabId,
       });
+
+      // Start 1-second cooldown to avoid exceeding Chrome's captureVisibleTab quota
+      isCoolingDown.value = true;
+      setTimeout(() => {
+        isCoolingDown.value = false;
+      }, 1000);
+
       return response?.image || null;
     } catch (err) {
       log.error('usePicker', 'Failed to capture element screenshot:', err);
@@ -129,6 +149,7 @@ export function usePicker() {
     // State
     isPicking,
     error,
+    isCoolingDown,
 
     // Methods
     startElementPicker,
