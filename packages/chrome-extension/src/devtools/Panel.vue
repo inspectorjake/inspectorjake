@@ -1,14 +1,25 @@
 <script setup lang="ts">
 /**
  * Jake MCP DevTools Panel - Main Vue component.
- * Refactored to use composables for state management.
+ * Orchestrates composables for state management.
  */
 
-import { onMounted, onUnmounted } from 'vue';
+import { computed, onMounted, onUnmounted } from 'vue';
 import type { ElementInfo } from '@inspector-jake/shared';
-import { useSelections, useConnection, usePicker, useLogs, LogLevel, LogSource, type DiscoveredSession } from './composables/index.js';
+import {
+  useSelections,
+  useConnection,
+  usePicker,
+  useLogs,
+  LogLevel,
+  LogSource,
+  type DiscoveredSession,
+} from './composables/index.js';
 
-// Initialize composables
+// ============================================================================
+// Composables
+// ============================================================================
+
 const {
   selections,
   expandedId,
@@ -48,29 +59,46 @@ const {
   cancelPicking,
 } = usePicker();
 
-const {
-  logs,
-  showLogs,
-  addLog,
-  clearLogs,
-  toggleLogs,
-} = useLogs();
+const { logs, showLogs, addLog, clearLogs, toggleLogs } = useLogs();
 
-// Unified error from both composables
-import { computed } from 'vue';
+// ============================================================================
+// Computed
+// ============================================================================
+
+/** Unified error from connection and picker composables */
 const error = computed(() => connectionError.value || pickerError.value);
 
-/**
- * Wrapper for picker button click with logging.
- */
-async function handlePickerClick() {
-  console.log('[Panel] Picker button clicked, isPicking:', isPicking.value, 'isCoolingDown:', isCoolingDown.value);
-  addLog(LogLevel.INFO, LogSource.EXT, `Picker clicked: isPicking=${isPicking.value}`);
+/** Check if any logs are errors (for indicator) */
+const hasLogErrors = computed(() => logs.value.some(l => l.level === LogLevel.ERROR));
 
-  if (isCoolingDown.value) {
-    console.log('[Panel] Cooldown active, ignoring');
-    return;
-  }
+// ============================================================================
+// Message Types
+// ============================================================================
+
+/** Incoming message types from background/content scripts */
+const MessageType = {
+  CONNECTION_CLOSED: 'CONNECTION_CLOSED',
+  DEVTOOLS_ELEMENT_SELECTED: 'DEVTOOLS_ELEMENT_SELECTED',
+  ELEMENT_PICKED: 'ELEMENT_PICKED',
+  SCREENSHOT_REGION_SELECTED: 'SCREENSHOT_REGION_SELECTED',
+  PICKER_CANCELLED: 'PICKER_CANCELLED',
+  REGION_SELECTED: 'REGION_SELECTED',
+  REGION_CANCELLED: 'REGION_CANCELLED',
+} as const;
+
+type MessageTypeValue = typeof MessageType[keyof typeof MessageType];
+
+// ============================================================================
+// Event Handlers
+// ============================================================================
+
+/**
+ * Handle picker button click with cooldown guard.
+ */
+async function handlePickerClick(): Promise<void> {
+  if (isCoolingDown.value) return;
+
+  addLog(LogLevel.INFO, LogSource.EXT, `Picker ${isPicking.value ? 'stopping' : 'starting'}`);
 
   if (isPicking.value) {
     stopElementPicker();
@@ -80,86 +108,92 @@ async function handlePickerClick() {
 }
 
 /**
- * Connect to a session and sync selections.
+ * Connect to a session and sync existing selections.
  */
-async function connectToSession(session: DiscoveredSession) {
+async function connectToSession(session: DiscoveredSession): Promise<void> {
   const success = await connectToSessionBase(session);
   if (success) {
-    // Sync existing selections to background so MCP server is aware
     await syncSelectionsToBackground();
   }
 }
 
 /**
  * Handle incoming messages from background/content scripts.
+ * Uses early returns and switch for cleaner flow.
  */
-async function handleMessage(message: any) {
-  if (message.type === 'CONNECTION_CLOSED') {
-    handleConnectionClosed();
-  }
+async function handleMessage(message: { type: string; [key: string]: unknown }): Promise<void> {
+  const { type } = message;
 
-  // Handle element selection updates from devtools.ts (Elements panel)
-  if (message.type === 'DEVTOOLS_ELEMENT_SELECTED') {
-    await addElementSelection(message.element as ElementInfo, captureElementScreenshot);
-  }
+  switch (type as MessageTypeValue) {
+    case MessageType.CONNECTION_CLOSED:
+      handleConnectionClosed();
+      break;
 
-  // Handle element picked from custom picker (click, not drag)
-  if (message.type === 'ELEMENT_PICKED') {
-    cancelPicking();
-    addLog(LogLevel.SUCCESS, LogSource.EXT, `Element selected: <${message.element.tagName}>`);
-    await addElementSelection(message.element as ElementInfo, captureElementScreenshot);
-  }
+    case MessageType.DEVTOOLS_ELEMENT_SELECTED:
+      await addElementSelection(message.element as ElementInfo, captureElementScreenshot);
+      break;
 
-  // Handle screenshot region selected (drag)
-  if (message.type === 'SCREENSHOT_REGION_SELECTED') {
-    cancelPicking();
-    const { rect } = message;
-    addLog(LogLevel.SUCCESS, LogSource.EXT, `Screenshot region: ${rect.width}×${rect.height}`);
-    const image = await captureElementScreenshot(rect);
-    if (image) {
-      addScreenshotSelection(rect, image);
+    case MessageType.ELEMENT_PICKED:
+      cancelPicking();
+      addLog(LogLevel.SUCCESS, LogSource.EXT, `Element selected: <${(message.element as ElementInfo).tagName}>`);
+      await addElementSelection(message.element as ElementInfo, captureElementScreenshot);
+      break;
+
+    case MessageType.SCREENSHOT_REGION_SELECTED: {
+      cancelPicking();
+      const rect = message.rect as { x: number; y: number; width: number; height: number };
+      addLog(LogLevel.SUCCESS, LogSource.EXT, `Screenshot region: ${rect.width}×${rect.height}`);
+      const image = await captureElementScreenshot(rect);
+      if (image) {
+        addScreenshotSelection(rect, image);
+      }
+      break;
     }
-  }
 
-  // Handle picker cancelled (Escape pressed)
-  if (message.type === 'PICKER_CANCELLED') {
-    addLog(LogLevel.INFO, LogSource.EXT, 'Picker cancelled');
-    cancelPicking();
-  }
+    case MessageType.PICKER_CANCELLED:
+      addLog(LogLevel.INFO, LogSource.EXT, 'Picker cancelled');
+      cancelPicking();
+      break;
 
-  // Legacy: Handle region selection completed (from old region selector)
-  if (message.type === 'REGION_SELECTED') {
-    const { image, rect } = message;
-    if (image) {
-      addScreenshotSelection(rect, image);
+    // Legacy support
+    case MessageType.REGION_SELECTED: {
+      const { image, rect } = message as { image: string; rect: { x: number; y: number; width: number; height: number } };
+      if (image) {
+        addScreenshotSelection(rect, image);
+      }
+      break;
     }
-  }
 
-  // Legacy: Handle region selection cancelled
-  if (message.type === 'REGION_CANCELLED') {
-    cancelPicking();
+    case MessageType.REGION_CANCELLED:
+      cancelPicking();
+      break;
   }
 }
+
+// ============================================================================
+// Utilities
+// ============================================================================
 
 /**
- * Format element for display.
+ * Format element tag for display (e.g., "<div#myId>").
  */
 function formatElementDisplay(el: { tagName: string; id?: string | null }): string {
-  let display = `<${el.tagName}`;
-  if (el.id) display += `#${el.id}`;
-  display += '>';
-  return display;
+  const idPart = el.id ? `#${el.id}` : '';
+  return `<${el.tagName}${idPart}>`;
 }
+
+// ============================================================================
+// Lifecycle
+// ============================================================================
 
 onMounted(async () => {
   chrome.runtime.onMessage.addListener(handleMessage);
   addLog(LogLevel.INFO, LogSource.EXT, 'Inspector Jake initialized');
-  await Promise.all([
-    getConnectionStatus(),
-    scanForSessions(),
-  ]);
 
-  // Auto-connect to first available session if not already connected
+  // Initialize connection state and sessions in parallel
+  await Promise.all([getConnectionStatus(), scanForSessions()]);
+
+  // Auto-connect to first available session
   if (!connectionStatus.value.connected && sessions.value.length > 0) {
     const availableSession = sessions.value.find(s => s.status !== 'connected');
     if (availableSession) {
@@ -170,7 +204,6 @@ onMounted(async () => {
 
 onUnmounted(() => {
   chrome.runtime.onMessage.removeListener(handleMessage);
-  // Stop picker if active when panel closes
   if (isPicking.value) {
     stopElementPicker();
   }
@@ -223,7 +256,7 @@ onUnmounted(() => {
           stroke-linecap="round"
           stroke-linejoin="round"
           @click.stop="toggleLogs"
-          :class="{ active: showLogs, 'has-errors': logs.some(l => l.level === 'error') }"
+          :class="{ active: showLogs, 'has-errors': hasLogErrors }"
           title="Toggle logs"
         >
           <polyline points="4 17 10 11 4 5"/>

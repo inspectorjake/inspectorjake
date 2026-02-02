@@ -3,37 +3,79 @@
  * Handles picker state, highlighting, and screenshot capture.
  * Extracted from Panel.vue to improve testability and reusability.
  */
-import { ref } from 'vue';
+import { ref, type Ref, readonly } from 'vue';
 import { log } from '../../utils/logger.js';
+
+/** Message types for content script communication */
+export const PickerMessageType = {
+  START: 'START_ELEMENT_PICKER',
+  STOP: 'STOP_ELEMENT_PICKER',
+  HIGHLIGHT: 'HIGHLIGHT_SELECTOR',
+  CLEAR_HIGHLIGHT: 'CLEAR_HIGHLIGHT',
+  CAPTURE_SCREENSHOT: 'CAPTURE_ELEMENT_SCREENSHOT',
+} as const;
+
+/** Bounding rectangle for element/region */
+export interface BoundingRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/** Return type for usePicker composable */
+export interface UsePickerReturn {
+  isPicking: Readonly<Ref<boolean>>;
+  error: Readonly<Ref<string | null>>;
+  isCoolingDown: Readonly<Ref<boolean>>;
+  startElementPicker: () => Promise<void>;
+  stopElementPicker: () => void;
+  highlightSelector: (selector: string) => Promise<void>;
+  clearHighlight: () => void;
+  captureElementScreenshot: (rect: BoundingRect) => Promise<string | null>;
+  cancelPicking: () => void;
+}
+
+/** Cooldown duration in ms to avoid Chrome's captureVisibleTab quota */
+const SCREENSHOT_COOLDOWN_MS = 1000;
+
+/**
+ * Get current tab ID from DevTools context.
+ */
+function getTabId(): number | undefined {
+  return chrome.devtools?.inspectedWindow?.tabId;
+}
+
+/**
+ * Send message to content script, injecting it first if needed.
+ */
+async function sendToContentScript(
+  tabId: number,
+  message: { type: string; [key: string]: unknown }
+): Promise<void> {
+  try {
+    await chrome.tabs.sendMessage(tabId, message);
+  } catch {
+    // Content script might not be injected yet
+    await chrome.scripting.executeScript({
+      target: { tabId },
+      files: ['src/content/index.js'],
+    });
+    await chrome.tabs.sendMessage(tabId, message);
+  }
+}
 
 /**
  * Composable for element picker state and operations.
  */
-export function usePicker() {
-  // Core state
+export function usePicker(): UsePickerReturn {
   const isPicking = ref(false);
   const error = ref<string | null>(null);
   const isCoolingDown = ref(false);
 
-  /**
-   * Get current tab ID from DevTools context.
-   */
-  function getTabId(): number | undefined {
-    return chrome.devtools?.inspectedWindow?.tabId;
-  }
-
-  /**
-   * Start the element picker.
-   * Sends message to content script; injects if not present.
-   */
   async function startElementPicker(): Promise<void> {
-    console.log('[usePicker] startElementPicker called');
-
     const tabId = getTabId();
-    console.log('[usePicker] tabId:', tabId);
-
     if (!tabId) {
-      console.log('[usePicker] ERROR: No tabId');
       error.value = 'No inspected tab';
       return;
     }
@@ -42,53 +84,29 @@ export function usePicker() {
     error.value = null;
 
     try {
-      console.log('[usePicker] Sending START_ELEMENT_PICKER to tab', tabId);
-      // Send message to content script to start picking
-      await chrome.tabs.sendMessage(tabId, { type: 'START_ELEMENT_PICKER' });
-      console.log('[usePicker] Message sent successfully');
+      await sendToContentScript(tabId, { type: PickerMessageType.START });
     } catch (err) {
-      console.log('[usePicker] First sendMessage failed:', err);
-      // Content script might not be injected yet, inject it
-      try {
-        console.log('[usePicker] Injecting content script...');
-        await chrome.scripting.executeScript({
-          target: { tabId },
-          files: ['src/content/index.js'],
-        });
-        console.log('[usePicker] Script injected, retrying message...');
-        // Try again
-        await chrome.tabs.sendMessage(tabId, { type: 'START_ELEMENT_PICKER' });
-        console.log('[usePicker] Retry successful');
-      } catch (injectErr) {
-        console.log('[usePicker] FAILED to inject/retry:', injectErr);
-        error.value = 'Failed to start element picker';
-        isPicking.value = false;
-        log.error('usePicker', 'Failed to start element picker:', injectErr);
-      }
+      error.value = 'Failed to start element picker';
+      isPicking.value = false;
+      log.error('usePicker', 'Failed to start element picker:', err);
     }
   }
 
-  /**
-   * Stop the element picker.
-   */
   function stopElementPicker(): void {
     const tabId = getTabId();
     if (tabId) {
-      chrome.tabs.sendMessage(tabId, { type: 'STOP_ELEMENT_PICKER' }).catch(() => {});
+      chrome.tabs.sendMessage(tabId, { type: PickerMessageType.STOP }).catch(() => {});
     }
     isPicking.value = false;
   }
 
-  /**
-   * Highlight an element by selector (for preview on hover).
-   */
   async function highlightSelector(selector: string): Promise<void> {
     const tabId = getTabId();
     if (!tabId || !selector) return;
 
     try {
       await chrome.tabs.sendMessage(tabId, {
-        type: 'HIGHLIGHT_SELECTOR',
+        type: PickerMessageType.HIGHLIGHT,
         selector,
       });
     } catch {
@@ -96,22 +114,14 @@ export function usePicker() {
     }
   }
 
-  /**
-   * Clear any active highlight.
-   */
   function clearHighlight(): void {
     const tabId = getTabId();
     if (!tabId) return;
 
-    chrome.tabs.sendMessage(tabId, { type: 'CLEAR_HIGHLIGHT' }).catch(() => {});
+    chrome.tabs.sendMessage(tabId, { type: PickerMessageType.CLEAR_HIGHLIGHT }).catch(() => {});
   }
 
-  /**
-   * Capture a screenshot of a specific element by its bounding rect.
-   */
-  async function captureElementScreenshot(
-    rect: { x: number; y: number; width: number; height: number }
-  ): Promise<string | null> {
+  async function captureElementScreenshot(rect: BoundingRect): Promise<string | null> {
     const tabId = getTabId();
     if (!tabId) {
       log.error('usePicker', 'No inspected tab for screenshot');
@@ -120,36 +130,33 @@ export function usePicker() {
 
     try {
       const response = await chrome.runtime.sendMessage({
-        type: 'CAPTURE_ELEMENT_SCREENSHOT',
+        type: PickerMessageType.CAPTURE_SCREENSHOT,
         rect,
         tabId,
       });
 
-      // Start 1-second cooldown to avoid exceeding Chrome's captureVisibleTab quota
+      // Start cooldown to avoid exceeding Chrome's captureVisibleTab quota
       isCoolingDown.value = true;
       setTimeout(() => {
         isCoolingDown.value = false;
-      }, 1000);
+      }, SCREENSHOT_COOLDOWN_MS);
 
-      return response?.image || null;
+      return response?.image ?? null;
     } catch (err) {
       log.error('usePicker', 'Failed to capture element screenshot:', err);
       return null;
     }
   }
 
-  /**
-   * Cancel picking (e.g., Escape pressed).
-   */
   function cancelPicking(): void {
     isPicking.value = false;
   }
 
   return {
-    // State
-    isPicking,
-    error,
-    isCoolingDown,
+    // State (readonly to prevent external mutation)
+    isPicking: readonly(isPicking),
+    error: readonly(error),
+    isCoolingDown: readonly(isCoolingDown),
 
     // Methods
     startElementPicker,
