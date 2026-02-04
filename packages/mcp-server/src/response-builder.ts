@@ -42,6 +42,7 @@ export interface SelectionData {
   width: number;
   height: number;
   rect: { x: number; y: number; width: number; height: number };
+  computedStyles?: Record<string, string>;
   hint?: string;
 }
 
@@ -116,15 +117,21 @@ export function renderSelections(selections: SelectionData[] | null | undefined)
     }
   }
 
-  // Elements: include metadata with hints
+  // Elements: include metadata with hints and computed styles
   if (elements.length) {
     content.push({
       type: 'text',
       text: `Element selections (${elements.length}):\n${elements
-        .map(
-          (e) =>
-            `  - [${e.id}] ${e.tagName} "${e.selector}" (${formatDimensions(e)})\n    ${e.hint}`
-        )
+        .map((e) => {
+          let text = `  - [${e.id}] ${e.tagName} "${e.selector}" (${formatDimensions(e)})\n    ${e.hint}`;
+          if (e.computedStyles && Object.keys(e.computedStyles).length > 0) {
+            const styleLines = Object.entries(e.computedStyles)
+              .map(([prop, value]) => `      ${prop}: ${value}`)
+              .join('\n');
+            text += `\n    Computed styles:\n${styleLines}`;
+          }
+          return text;
+        })
         .join('\n')}`,
     });
   }
