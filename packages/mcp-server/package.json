@@ -1,6 +1,6 @@
 {
   "name": "inspector-jake-mcp",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "MCP server for Inspector Jake - inspect web pages via Chrome DevTools",
   "keywords": ["mcp", "chrome", "devtools", "ai", "browser", "automation", "model-context-protocol"],
   "author": "Jacob Chapa",

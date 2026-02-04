@@ -1,19 +1,19 @@
-# @agent-jake/inspector-jake-mcp
+# inspector-jake-mcp
 
 MCP server for Inspector Jake - inspect web pages via Chrome DevTools.
 
-[![npm version](https://badge.fury.io/js/@agent-jake%2Finspector-jake-mcp.svg)](https://www.npmjs.com/package/@agent-jake/inspector-jake-mcp)
+[![npm version](https://badge.fury.io/js/inspector-jake-mcp.svg)](https://www.npmjs.com/package/inspector-jake-mcp)
 
 ## Installation
 
 ```bash
-npx @agent-jake/inspector-jake-mcp
+npx inspector-jake-mcp
 ```
 
 Or install globally:
 
 ```bash
-npm install -g @agent-jake/inspector-jake-mcp
+npm install -g inspector-jake-mcp
 inspector-jake-mcp
 ```
 
@@ -31,7 +31,7 @@ Add to your Claude Desktop config file:
   "mcpServers": {
     "inspector-jake": {
       "command": "npx",
-      "args": ["@agent-jake/inspector-jake-mcp"]
+      "args": ["inspector-jake-mcp"]
     }
   }
 }
