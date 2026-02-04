@@ -52,6 +52,16 @@ async function handleMessage(
       const { sessionName, port, tabId } = message;
       try {
         await connectToSession(sessionName as SessionName, port, tabId);
+        // Initialize computed styles mode on the content script
+        if (tabId) {
+          const stored = await chrome.storage.local.get('computedStylesMode');
+          const mode = stored.computedStylesMode || 'non-default';
+          chrome.scripting.executeScript({
+            target: { tabId },
+            func: (m: string) => { (window as any).__jakesVibeComputedStylesMode = m; },
+            args: [mode],
+          }).catch(() => {});
+        }
         return { success: true };
       } catch (err) {
         return {
@@ -168,6 +178,19 @@ async function handleMessage(
     case 'REGION_CANCELLED': {
       // Relay from content script to DevTools panel
       chrome.runtime.sendMessage(message).catch(() => {});
+      return { success: true };
+    }
+
+    case 'SET_COMPUTED_STYLES_MODE': {
+      const { mode } = message;
+      const { tabId: connectedTabId } = getConnectionStatus();
+      if (connectedTabId) {
+        chrome.scripting.executeScript({
+          target: { tabId: connectedTabId },
+          func: (m: string) => { (window as any).__jakesVibeComputedStylesMode = m; },
+          args: [mode],
+        });
+      }
       return { success: true };
     }
 

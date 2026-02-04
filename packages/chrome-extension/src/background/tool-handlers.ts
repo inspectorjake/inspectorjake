@@ -92,6 +92,7 @@ interface SelectionResponse {
   className?: string;
   dimensions: string;
   rect: { x: number; y: number; width: number; height: number };
+  computedStyles?: Record<string, string>;
   hint?: string;
 }
 
@@ -122,6 +123,7 @@ function buildSelectionsResponse(selections: Selection[] = storedSelections): Se
       selector: sel.selector,
       tagName: sel.tagName,
       className: sel.className,
+      computedStyles: sel.computedStyles,
       hint: `Use view_user_selection_image tool with imageId="${sel.id}" to see this element's screenshot`,
     };
   });
