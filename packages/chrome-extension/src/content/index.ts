@@ -845,6 +845,54 @@ function buildA11yPath(el: Element): string {
   getElementInfo(el: Element): any {
     const rect = el.getBoundingClientRect();
 
+    // Capture computed styles based on configurable mode
+    let computedStyles: Record<string, string> | undefined;
+    if (el instanceof HTMLElement) {
+      const mode = (window as any).__jakesVibeComputedStylesMode || 'non-default';
+      const cs = window.getComputedStyle(el);
+      computedStyles = {};
+
+      const LEAN_SET = new Set([
+        'display', 'position', 'top', 'right', 'bottom', 'left',
+        'width', 'height', 'min-width', 'min-height', 'max-width', 'max-height',
+        'margin', 'padding', 'box-sizing',
+        'flex-direction', 'flex-wrap', 'justify-content', 'align-items', 'gap',
+        'grid-template-columns', 'grid-template-rows',
+        'background-color', 'color', 'opacity',
+        'border', 'border-radius', 'box-shadow',
+        'font-family', 'font-size', 'font-weight', 'line-height', 'text-align',
+        'overflow', 'z-index',
+      ]);
+
+      const DEFAULTS = new Set([
+        'none', 'normal', 'auto', '0px', '0', 'start', 'stretch',
+        'visible', 'static', 'baseline', 'row', 'nowrap', '',
+      ]);
+
+      if (mode === 'lean') {
+        // Only curated properties — always include all of them
+        for (const prop of LEAN_SET) {
+          computedStyles[prop] = cs.getPropertyValue(prop);
+        }
+      } else {
+        // 'all' or 'non-default': iterate every computed property
+        for (let i = 0; i < cs.length; i++) {
+          const prop = cs[i];
+          const value = cs.getPropertyValue(prop);
+          const isLean = LEAN_SET.has(prop);
+
+          if (mode === 'all') {
+            computedStyles[prop] = value;
+          } else {
+            // non-default: lean properties always included, others only if non-default
+            if (isLean || !DEFAULTS.has(value)) {
+              computedStyles[prop] = value;
+            }
+          }
+        }
+      }
+    }
+
     return {
       tagName: (el.tagName || 'element').toLowerCase(),
       id: el.id || null,
@@ -856,6 +904,7 @@ function buildA11yPath(el: Element): string {
         name: a.name,
         value: a.value,
       })),
+      computedStyles,
       rect: {
         x: rect.x,
         y: rect.y,
