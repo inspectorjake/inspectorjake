@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="packages/chrome-extension/icons/logo.svg" alt="Inspector Jake" width="128" height="128">
+</p>
+
 # Inspector Jake
 
 Let AI agents inspect and interact with web pages through Chrome DevTools.
