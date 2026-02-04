@@ -13,3 +13,4 @@ export * from './accessibility.js';
 export * from './selectors.js';
 export * from './image.js';
 export * from './rect.js';
+export * from './computed-styles.js';

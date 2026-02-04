@@ -11,7 +11,9 @@ export interface ElementInfo {
   className: string | null;
   selector: string;
   innerText: string | null;
+  a11yPath?: string;
   attributes: Array<{ name: string; value: string }>;
+  computedStyles?: Record<string, string>;
   rect: {
     x: number;
     y: number;
@@ -62,6 +64,8 @@ export interface ElementSelection extends BaseSelection {
   className: string | null;
   rect: { x: number; y: number; width: number; height: number };
   attributes: Array<{ name: string; value: string }>;
+  computedStyles?: Record<string, string>;
+  a11yPath?: string;
 }
 
 // Screenshot selection - just a region capture
@@ -124,6 +128,7 @@ export interface GetSelectionsResponse {
     className?: string;
     dimensions: string;
     rect: { x: number; y: number; width: number; height: number };
+    computedStyles?: Record<string, string>;
     hint?: string;
   }>;
 }
