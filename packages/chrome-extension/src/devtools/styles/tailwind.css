@@ -1,0 +1,87 @@
+/* Tailwind CSS v4 entry + custom design tokens for Jake MCP DevTools panel. */
+@import "tailwindcss";
+
+/* Design tokens */
+@theme {
+  --color-obsidian-950: #050505;
+  --color-obsidian-900: #0a0a0a;
+  --color-obsidian-800: #1e1e1e;
+  --color-obsidian-700: #2a2a2a;
+  --color-obsidian-600: #3a3a3a;
+
+  --color-lime-accent: #bef264;
+  --color-lime-glow: rgba(190, 242, 100, 0.2);
+
+  --font-display: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  --animate-pulse-slow: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Bundled fonts */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('/assets/fonts/inter.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('/assets/fonts/jetbrains-mono.woff2') format('woff2');
+}
+
+/* Custom scrollbar */
+@utility custom-scrollbar {
+  &::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: #3a3a3a;
+    border-radius: 4px;
+    border: 2px solid #2a2a2a;
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background: #4a4a4a;
+  }
+}
+
+/* Syntax highlighting utilities */
+@utility code-syntax-tag {
+  color: #f472b6;
+}
+
+@utility code-syntax-attr {
+  color: #bef264;
+}
+
+@utility code-syntax-val {
+  color: #7dd3fc;
+}
+
+@utility code-syntax-comment {
+  color: #888888;
+}
+
+/* Keyframes for LogsPanel blinking cursor */
+@keyframes cursor-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+/* Logs slide transition */
+@utility logs-slide-enter-active {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@utility logs-slide-leave-active {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}

@@ -92,6 +92,8 @@ export function useSelections() {
       className: element.className,
       rect: element.rect,
       attributes: element.attributes,
+      computedStyles: element.computedStyles,
+      a11yPath: element.a11yPath,
     };
 
     selections.value.push(newSelection);
