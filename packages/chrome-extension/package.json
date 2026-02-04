@@ -9,18 +9,23 @@
     "build": "vite build && BUILD_CONTENT=true vite build",
     "build:main": "vite build",
     "build:content": "BUILD_CONTENT=true vite build",
+    "dev:preview": "npm run build && vite build --watch & vite --config vite.preview.config.ts",
     "lint": "echo 'No lint configured'"
   },
   "dependencies": {
     "@inspector-jake/shared": "*",
-    "swiper": "^12.0.3",
     "vue": "^3.4.0"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.18",
+    "@tailwindcss/vite": "^4.1.18",
     "@types/chrome": "^0.0.260",
     "@vitejs/plugin-vue": "^5.0.0",
     "@vue/test-utils": "^2.4.6",
+    "autoprefixer": "^10.4.24",
     "happy-dom": "^20.4.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.18",
     "typescript": "^5.3.3",
     "vite": "^5.0.0",
     "vitest": "^4.0.18"

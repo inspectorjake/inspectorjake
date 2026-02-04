@@ -1,6 +1,7 @@
 /**
- * VibeJake DevTools Panel - Vue app entry point.
+ * Jake MCP DevTools Panel - Vue app entry point.
  */
+import './styles/tailwind.css';
 import { createApp } from 'vue';
 import Panel from './Panel.vue';
 

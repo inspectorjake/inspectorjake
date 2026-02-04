@@ -61,6 +61,20 @@ function copyStaticFiles() {
         resolve(distDir, 'icons/logo.svg')
       );
 
+      // Copy fonts
+      const fontsDir = resolve(distDir, 'assets/fonts');
+      if (!existsSync(fontsDir)) {
+        mkdirSync(fontsDir, { recursive: true });
+      }
+      copyFileSync(
+        resolve(__dirname, 'assets/fonts/inter.woff2'),
+        resolve(fontsDir, 'inter.woff2')
+      );
+      copyFileSync(
+        resolve(__dirname, 'assets/fonts/jetbrains-mono.woff2'),
+        resolve(fontsDir, 'jetbrains-mono.woff2')
+      );
+
       console.log('Static files copied to dist/');
     }
   };
@@ -73,7 +87,7 @@ export default defineConfig({
   plugins: isContentBuild ? [] : [vue(), copyStaticFiles()],
   build: {
     outDir: 'dist',
-    emptyOutDir: !isContentBuild, // Don't empty on content build (runs second)
+    emptyOutDir: !isContentBuild && !process.argv.includes('--watch'), // Don't empty on content build or watch mode
     rollupOptions: isContentBuild ? {
       // Content script build - IIFE format, no imports
       input: resolve(__dirname, 'src/content/index.ts'),
