@@ -55,7 +55,7 @@ async function handleMessage(
         // Initialize computed styles mode on the content script
         if (tabId) {
           const stored = await chrome.storage.local.get('computedStylesMode');
-          const mode = stored.computedStylesMode || 'non-default';
+          const mode = stored.computedStylesMode || 'lean';
           chrome.scripting.executeScript({
             target: { tabId },
             func: (m: string) => { (window as any).__jakesVibeComputedStylesMode = m; },

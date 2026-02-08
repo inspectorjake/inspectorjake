@@ -94,6 +94,7 @@ interface SelectionResponse {
   rect: { x: number; y: number; width: number; height: number };
   computedStyles?: Record<string, string>;
   hint?: string;
+  note?: string;
 }
 
 /**
@@ -103,11 +104,15 @@ interface SelectionResponse {
 function buildSelectionsResponse(selections: Selection[] = storedSelections): SelectionResponse[] {
   return selections.map((sel) => {
     const dimensions = formatDimensions(sel);
-    const base = {
+    const base: Pick<SelectionResponse, 'id' | 'dimensions' | 'rect' | 'note'> = {
       id: sel.id,
       dimensions,
       rect: sel.rect,
     };
+
+    if (sel.note) {
+      base.note = sel.note;
+    }
 
     if (sel.type === 'screenshot') {
       return {
@@ -349,16 +354,13 @@ async function handleScreenshot(
 
     const rect = result.result;
 
-    // Crop to element rect using existing cropImageToRect
+    // Crop to element rect and resize if needed
     const croppedImage = await cropImageToRect(dataUrl, rect);
-    return {
-      image: croppedImage,
-      width: rect.width,
-      height: rect.height,
-    };
+    const maxDim = await getMaxScreenshotDimension();
+    return resizeImageIfNeeded(croppedImage, rect.width, rect.height, maxDim);
   }
 
-  // No selector - return full viewport (existing behavior)
+  // No selector - return full viewport, resized if needed
   const results = await chrome.scripting.executeScript({
     target: { tabId },
     func: () => ({
@@ -368,12 +370,8 @@ async function handleScreenshot(
   });
 
   const dimensions = results[0]?.result || { width: 0, height: 0 };
-
-  return {
-    image: dataUrl,
-    width: dimensions.width,
-    height: dimensions.height,
-  };
+  const maxDim = await getMaxScreenshotDimension();
+  return resizeImageIfNeeded(dataUrl, dimensions.width, dimensions.height, maxDim);
 }
 
 /**
@@ -528,6 +526,50 @@ async function cropImageToRect(
     reader.onerror = reject;
     reader.readAsDataURL(croppedBlob);
   });
+}
+
+/**
+ * Read max screenshot dimension from chrome.storage.local (set by DevTools settings panel).
+ */
+async function getMaxScreenshotDimension(): Promise<number> {
+  const result = await chrome.storage.local.get('maxScreenshotDimension');
+  return result.maxScreenshotDimension || 800;
+}
+
+/**
+ * Downscale an image if either dimension exceeds maxDim, preserving aspect ratio.
+ */
+async function resizeImageIfNeeded(
+  dataUrl: string,
+  width: number,
+  height: number,
+  maxDim: number
+): Promise<{ image: string; width: number; height: number }> {
+  if (width <= maxDim && height <= maxDim) {
+    return { image: dataUrl, width, height };
+  }
+
+  const scale = maxDim / Math.max(width, height);
+  const newWidth = Math.round(width * scale);
+  const newHeight = Math.round(height * scale);
+
+  const response = await fetch(dataUrl);
+  const blob = await response.blob();
+  const imageBitmap = await createImageBitmap(blob);
+
+  const canvas = new OffscreenCanvas(newWidth, newHeight);
+  const ctx = canvas.getContext('2d')!;
+  ctx.drawImage(imageBitmap, 0, 0, newWidth, newHeight);
+
+  const resizedBlob = await canvas.convertToBlob({ type: 'image/png' });
+  const image = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(resizedBlob);
+  });
+
+  return { image, width: newWidth, height: newHeight };
 }
 
 // =============================================================================
@@ -812,11 +854,8 @@ async function handleBrowserScreenshot(
     if (result?.result) {
       const dataUrl = await chrome.tabs.captureVisibleTab(undefined, { format: 'png' });
       const croppedImage = await cropImageToRect(dataUrl, result.result);
-      return {
-        image: croppedImage,
-        width: result.result.width,
-        height: result.result.height,
-      };
+      const maxDim = await getMaxScreenshotDimension();
+      return resizeImageIfNeeded(croppedImage, result.result.width, result.result.height, maxDim);
     }
   }
 

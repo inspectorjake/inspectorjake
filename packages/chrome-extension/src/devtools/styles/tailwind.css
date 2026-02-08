@@ -71,12 +71,6 @@
   color: #888888;
 }
 
-/* Keyframes for LogsPanel blinking cursor */
-@keyframes cursor-blink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0; }
-}
-
 /* Logs slide transition */
 @utility logs-slide-enter-active {
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);

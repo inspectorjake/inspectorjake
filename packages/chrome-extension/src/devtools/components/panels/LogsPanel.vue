@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * LogsPanel - Retro terminal-style system logs display.
- * Shows extension events with level coloring, timestamps, and a blinking cursor.
+ * Shows extension events with level coloring and timestamps.
  */
 import { computed, ref, watch, nextTick } from 'vue';
 import type { LogEntry } from '../../composables/index.js';
@@ -151,11 +151,6 @@ function messageClass(entry: LogEntry): string {
           </div>
         </TransitionGroup>
 
-        <!-- Blinking cursor at bottom -->
-        <div class="flex items-center gap-1 mt-1 opacity-70">
-          <span class="text-lime-accent text-[10px]">&#9658;</span>
-          <span class="w-2 h-3.5 bg-lime-accent animate-[cursor-blink_1s_step-end_infinite]" />
-        </div>
       </div>
     </div>
   </Transition>

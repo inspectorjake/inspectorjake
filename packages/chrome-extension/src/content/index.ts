@@ -240,6 +240,7 @@ function removeHighlightOverlay() {
 // Track drag state for click vs drag detection
 let dragStartPos: { x: number; y: number } | null = null;
 let isDragging = false;
+let suppressNextLeftClick = false;
 const DRAG_THRESHOLD = 10; // pixels - if mouse moves more than this, it's a drag
 
 function onMouseMove(e: MouseEvent) {
@@ -285,6 +286,7 @@ function onMouseLeave() {
 
 function onMouseDown(e: MouseEvent) {
   if (!isPicking) return;
+  if (e.button !== 0) return;
 
   e.preventDefault();
   dragStartPos = { x: e.clientX, y: e.clientY };
@@ -292,6 +294,7 @@ function onMouseDown(e: MouseEvent) {
 }
 
 function onMouseUp(e: MouseEvent) {
+  if (e.button !== 0) return;
   if (!isPicking || !dragStartPos) return;
   if (!isCurrentVersion()) return; // Orphaned script check
 
@@ -317,6 +320,7 @@ function onMouseUp(e: MouseEvent) {
     }
 
     hideDragRegion();
+    suppressNextLeftClick = true;
     stopPicking();
   } else if (hoveredElement) {
     // Click - select element
@@ -328,6 +332,7 @@ function onMouseUp(e: MouseEvent) {
       element: info,
     });
 
+    suppressNextLeftClick = true;
     stopPicking();
   }
 
@@ -349,12 +354,14 @@ function onKeyDown(e: KeyboardEvent) {
 }
 
 function onClick(e: MouseEvent) {
-  if (!isPicking) return;
+  if (e.button !== 0) return;
+  if (!isPicking && !suppressNextLeftClick) return;
   if (!isCurrentVersion()) return; // Orphaned script check
   // Prevent default click action (navigation, form submit, etc.)
   e.preventDefault();
   e.stopPropagation();
   e.stopImmediatePropagation();
+  suppressNextLeftClick = false;
 }
 
 // ============================================================================
@@ -421,6 +428,7 @@ function startPicking() {
   console.log('[Jake MCP Content] isPicking set to true, adding event listeners');
   dragStartPos = null;
   isDragging = false;
+  suppressNextLeftClick = false;
 
   createHighlightOverlay();
 
@@ -450,8 +458,12 @@ function stopPicking() {
   document.removeEventListener('mouseleave', onMouseLeave, true);
   document.removeEventListener('mousedown', onMouseDown, true);
   document.removeEventListener('mouseup', onMouseUp, true);
-  document.removeEventListener('click', onClick, true);
   document.removeEventListener('keydown', onKeyDown, true);
+
+  // Defer click listener removal so it catches the click that follows mouseup
+  setTimeout(() => {
+    document.removeEventListener('click', onClick, true);
+  }, 0);
 
   hideHighlight();
   removeHighlightOverlay();
@@ -704,6 +716,28 @@ if (chrome.runtime?.id) {
         hideHighlight();
         sendResponse({ success: true });
         break;
+      case 'REFRESH_ELEMENT_STYLES': {
+        const { selector } = message;
+
+        if (!selector || typeof selector !== 'string') {
+          sendResponse({ success: false, error: 'Invalid selector' });
+          break;
+        }
+
+        try {
+          const el = document.querySelector(selector);
+          if (!el) {
+            sendResponse({ success: false, error: 'Element not found' });
+            break;
+          }
+
+          const info = (window as any).__jakesVibe.getElementInfo(el);
+          sendResponse({ success: true, computedStyles: info.computedStyles });
+        } catch {
+          sendResponse({ success: false, error: 'Failed to refresh styles' });
+        }
+        break;
+      }
       case 'START_REGION_SELECTION':
         startRegionSelection();
         sendResponse({ success: true });

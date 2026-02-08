@@ -4,7 +4,7 @@
  * Composes child components and wires composable state.
  */
 
-import { computed, onMounted, onUnmounted } from 'vue';
+import { computed, ref, onMounted, onUnmounted, watch } from 'vue';
 import type { ElementInfo } from '@inspector-jake/shared';
 import {
   useSelections,
@@ -21,6 +21,7 @@ import ViewToggleBar from './components/ViewToggleBar.vue';
 import AppHeader from './components/AppHeader.vue';
 import CapturesSidebar from './components/CapturesSidebar.vue';
 import WorkspaceLayout from './components/WorkspaceLayout.vue';
+import SettingsDropdown from './components/SettingsDropdown.vue';
 
 // ============================================================================
 // Composables
@@ -34,6 +35,8 @@ const {
   addElementSelection,
   addScreenshotSelection,
   removeSelection,
+  updateSelectionNote,
+  refreshExpandedStyles,
   clearAllSelections,
   syncSelectionsToBackground,
 } = useSelections();
@@ -65,7 +68,9 @@ const {
 } = usePicker();
 
 const { logs, showLogs, addLog, clearLogs, toggleLogs } = useLogs();
-const { computedStylesMode } = useSettings();
+const { computedStylesMode, maxScreenshotDimension } = useSettings();
+const showSettings = ref(false);
+function toggleSettings() { showSettings.value = !showSettings.value; }
 
 // ============================================================================
 // Computed
@@ -73,6 +78,10 @@ const { computedStylesMode } = useSettings();
 
 const error = computed(() => connectionError.value || pickerError.value);
 const hasLogErrors = computed(() => logs.value.some(l => l.level === LogLevel.ERROR));
+
+watch(computedStylesMode, async () => {
+  await refreshExpandedStyles();
+});
 
 // ============================================================================
 // Message Types
@@ -102,6 +111,11 @@ async function handlePickerClick(): Promise<void> {
   } else {
     await startElementPicker();
   }
+}
+
+function handlePanelClick(): void {
+  if (!isPicking.value) return;
+  stopElementPicker();
 }
 
 async function connectToSession(session: DiscoveredSession): Promise<void> {
@@ -187,7 +201,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="h-full flex flex-col overflow-hidden bg-obsidian-900 text-gray-300 font-display antialiased" @click.self="isPicking && stopElementPicker()">
+  <div class="h-full flex flex-col overflow-hidden bg-obsidian-900 text-gray-300 font-display antialiased" @click="handlePanelClick">
     <!-- View toggle bar -->
     <ViewToggleBar />
 
@@ -200,8 +214,17 @@ onUnmounted(() => {
       :is-cooling-down="isCoolingDown"
       :show-logs="showLogs"
       :has-log-errors="hasLogErrors"
+      :show-settings="showSettings"
       @toggle-picker="handlePickerClick"
       @toggle-logs="toggleLogs"
+      @toggle-settings="toggleSettings"
+    />
+
+    <!-- Settings dropdown -->
+    <SettingsDropdown
+      v-if="showSettings"
+      :max-screenshot-dimension="maxScreenshotDimension"
+      @update:max-screenshot-dimension="maxScreenshotDimension = $event"
     />
 
     <!-- Error banner -->
@@ -244,6 +267,7 @@ onUnmounted(() => {
         @clear-logs="clearLogs"
         @close-logs="toggleLogs"
         @update:computed-styles-mode="computedStylesMode = $event"
+        @update:note="updateSelectionNote"
       />
     </div>
   </div>

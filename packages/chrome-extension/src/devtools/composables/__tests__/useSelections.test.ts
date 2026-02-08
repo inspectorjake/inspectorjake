@@ -9,15 +9,24 @@ import type { ElementInfo } from '@inspector-jake/shared';
 
 // Mock chrome.runtime.sendMessage
 const mockSendMessage = vi.fn().mockResolvedValue({});
+const mockTabSendMessage = vi.fn().mockResolvedValue({});
+const inspectedWindow = { tabId: 123 };
 vi.stubGlobal('chrome', {
   runtime: {
     sendMessage: mockSendMessage,
+  },
+  tabs: {
+    sendMessage: mockTabSendMessage,
+  },
+  devtools: {
+    inspectedWindow,
   },
 });
 
 describe('useSelections', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    inspectedWindow.tabId = 123;
   });
 
   describe('initial state', () => {
@@ -283,6 +292,124 @@ describe('useSelections', () => {
         type: 'SYNC_SELECTIONS',
         selections: [],
       });
+    });
+  });
+
+  describe('refreshExpandedStyles', () => {
+    const createMockElement = (overrides: Partial<ElementInfo> = {}): ElementInfo => ({
+      tagName: 'div',
+      selector: 'div.container',
+      className: 'container',
+      rect: { x: 0, y: 0, width: 100, height: 50 },
+      attributes: {},
+      ...overrides,
+    });
+
+    it('should do nothing when no selection is expanded', async () => {
+      const { refreshExpandedStyles } = useSelections();
+
+      await refreshExpandedStyles();
+
+      expect(mockTabSendMessage).not.toHaveBeenCalled();
+    });
+
+    it('should do nothing when expanded selection is not an element', async () => {
+      const { addScreenshotSelection, refreshExpandedStyles } = useSelections();
+
+      addScreenshotSelection({ x: 0, y: 0, width: 100, height: 50 }, 'img');
+      await refreshExpandedStyles();
+
+      expect(mockTabSendMessage).not.toHaveBeenCalled();
+    });
+
+    it('should refresh computed styles on expanded element selection', async () => {
+      const { selections, addElementSelection, refreshExpandedStyles } = useSelections();
+      await addElementSelection(createMockElement({ selector: 'main > div:nth-of-type(2)' }));
+      mockSendMessage.mockClear();
+      mockTabSendMessage.mockResolvedValueOnce({
+        success: true,
+        computedStyles: { display: 'grid', color: 'rgb(0, 0, 0)' },
+      });
+
+      await refreshExpandedStyles();
+
+      expect(mockTabSendMessage).toHaveBeenCalledWith(123, {
+        type: 'REFRESH_ELEMENT_STYLES',
+        selector: 'main > div:nth-of-type(2)',
+      });
+      expect(selections.value[0].type).toBe('element');
+      expect((selections.value[0] as any).computedStyles).toEqual({
+        display: 'grid',
+        color: 'rgb(0, 0, 0)',
+      });
+      expect(mockSendMessage).toHaveBeenCalledWith({
+        type: 'SYNC_SELECTIONS',
+        selections: expect.any(Array),
+      });
+    });
+
+    it('should do nothing when inspected tab id is unavailable', async () => {
+      const { addElementSelection, refreshExpandedStyles } = useSelections();
+      await addElementSelection(createMockElement());
+      inspectedWindow.tabId = undefined as any;
+
+      await refreshExpandedStyles();
+
+      expect(mockTabSendMessage).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('updateSelectionNote', () => {
+    it('should update note on the correct selection', async () => {
+      const { selections, addScreenshotSelection, updateSelectionNote } = useSelections();
+      addScreenshotSelection({ x: 0, y: 0, width: 100, height: 50 }, 'img1');
+      addScreenshotSelection({ x: 10, y: 10, width: 200, height: 100 }, 'img2');
+      await nextTick();
+
+      const targetId = selections.value[0].id;
+      updateSelectionNote(targetId, 'Center this vertically');
+
+      expect(selections.value[0].note).toBe('Center this vertically');
+      expect(selections.value[1].note).toBeUndefined();
+    });
+
+    it('should sync to background after updating note', async () => {
+      const { selections, addScreenshotSelection, updateSelectionNote } = useSelections();
+      addScreenshotSelection({ x: 0, y: 0, width: 100, height: 50 }, 'img');
+      await nextTick();
+      mockSendMessage.mockClear();
+
+      updateSelectionNote(selections.value[0].id, 'Fix the color');
+
+      expect(mockSendMessage).toHaveBeenCalledWith({
+        type: 'SYNC_SELECTIONS',
+        selections: expect.arrayContaining([
+          expect.objectContaining({ note: 'Fix the color' }),
+        ]),
+      });
+    });
+
+    it('should not sync if selection id not found', async () => {
+      const { addScreenshotSelection, updateSelectionNote } = useSelections();
+      addScreenshotSelection({ x: 0, y: 0, width: 100, height: 50 }, 'img');
+      await nextTick();
+      mockSendMessage.mockClear();
+
+      updateSelectionNote('non-existent-id', 'Some note');
+
+      expect(mockSendMessage).not.toHaveBeenCalled();
+    });
+
+    it('should persist note through selection lifecycle', async () => {
+      const { selections, addScreenshotSelection, updateSelectionNote } = useSelections();
+      addScreenshotSelection({ x: 0, y: 0, width: 100, height: 50 }, 'img');
+      await nextTick();
+
+      const id = selections.value[0].id;
+      updateSelectionNote(id, 'Make this bigger');
+
+      // Verify note persists
+      expect(selections.value.find(s => s.id === id)?.note).toBe('Make this bigger');
     });
   });
 

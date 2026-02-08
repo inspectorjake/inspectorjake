@@ -42,6 +42,13 @@ const truncatedSelector = computed(() => {
   if (props.selection.type !== 'element') return null
   return props.selection.selector
 })
+
+/** Truncated note preview for the card */
+const notePreview = computed(() => {
+  const note = props.selection.note
+  if (!note) return null
+  return note.length > 30 ? note.slice(0, 30) + '...' : note
+})
 </script>
 
 <template>
@@ -126,6 +133,14 @@ const truncatedSelector = computed(() => {
           {{ formattedTime }}
         </span>
       </div>
+    </div>
+
+    <!-- Note indicator -->
+    <div v-if="notePreview" class="mt-1.5 pl-1 flex items-center gap-1 min-w-0">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 text-gray-600">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+      </svg>
+      <span class="text-[9px] text-gray-500 italic truncate" :title="selection.note">{{ notePreview }}</span>
     </div>
   </div>
 </template>

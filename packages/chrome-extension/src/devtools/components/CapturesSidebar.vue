@@ -89,7 +89,7 @@ const emit = defineEmits<{
             '!border-lime-accent !border-solid bg-lime-accent/10 animate-pulse': isPicking,
             'opacity-40 cursor-not-allowed pointer-events-none': isCoolingDown,
           }"
-          @click="emit('pick')"
+          @click.stop="emit('pick')"
         >
           <div class="flex items-center gap-2">
             <div class="w-6 h-6 rounded-full bg-lime-accent/10 flex items-center justify-center group-hover:bg-lime-accent/20 transition-colors">

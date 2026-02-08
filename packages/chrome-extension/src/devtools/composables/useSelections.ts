@@ -151,6 +151,47 @@ export function useSelections() {
   }
 
   /**
+   * Update the note on a selection by ID.
+   */
+  function updateSelectionNote(id: string, note: string): void {
+    const selection = selections.value.find((s) => s.id === id);
+    if (selection) {
+      selection.note = note;
+      syncSelectionsToBackground();
+    }
+  }
+
+  /**
+   * Refresh computed styles for the currently expanded element selection.
+   * Re-fetches styles from content script using the current mode setting.
+   */
+  async function refreshExpandedStyles(): Promise<void> {
+    const selection = expandedSelection.value;
+    if (!selection || selection.type !== 'element') {
+      return;
+    }
+
+    const tabId = chrome.devtools?.inspectedWindow?.tabId;
+    if (!tabId) {
+      return;
+    }
+
+    try {
+      const response = await chrome.tabs.sendMessage(tabId, {
+        type: 'REFRESH_ELEMENT_STYLES',
+        selector: selection.selector,
+      });
+
+      if (response?.success && response.computedStyles) {
+        selection.computedStyles = response.computedStyles;
+        syncSelectionsToBackground();
+      }
+    } catch {
+      // Element may no longer exist or content script may be unavailable.
+    }
+  }
+
+  /**
    * Clear all selections.
    */
   function clearAllSelections(): void {
@@ -172,6 +213,8 @@ export function useSelections() {
     addElementSelection,
     addScreenshotSelection,
     removeSelection,
+    updateSelectionNote,
+    refreshExpandedStyles,
     clearAllSelections,
     syncSelectionsToBackground,
   };

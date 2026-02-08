@@ -14,11 +14,13 @@ defineProps<{
   isCoolingDown: boolean
   showLogs: boolean
   hasLogErrors: boolean
+  showSettings: boolean
 }>()
 
 const emit = defineEmits<{
   'toggle-picker': []
   'toggle-logs': []
+  'toggle-settings': []
 }>()
 </script>
 
@@ -37,7 +39,7 @@ const emit = defineEmits<{
         ]"
         :disabled="isCoolingDown"
         :title="isCoolingDown ? 'Please wait...' : (isPicking ? 'Stop picking (Esc)' : 'Select element or drag region')"
-        @click="emit('toggle-picker')"
+        @click.stop="emit('toggle-picker')"
       >
         <svg
           width="18"
@@ -103,10 +105,12 @@ const emit = defineEmits<{
         </svg>
       </button>
 
-      <!-- Settings gear button (placeholder) -->
+      <!-- Settings gear button -->
       <button
-        class="p-1 rounded text-gray-500 hover:text-white transition-colors hover:bg-obsidian-800"
+        class="p-1 rounded transition-colors hover:bg-obsidian-800"
+        :class="showSettings ? 'text-lime-accent' : 'text-gray-500 hover:text-white'"
         title="Settings"
+        @click="emit('toggle-settings')"
       >
         <svg
           width="18"
