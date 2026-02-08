@@ -44,6 +44,7 @@ export interface SelectionData {
   rect: { x: number; y: number; width: number; height: number };
   computedStyles?: Record<string, string>;
   hint?: string;
+  note?: string;
 }
 
 /**
@@ -110,9 +111,13 @@ export function renderSelections(selections: SelectionData[] | null | undefined)
         data: stripBase64Prefix(shot.image),
         mimeType: 'image/png',
       });
+      let shotText = `Screenshot region: ${formatDimensions(shot)}`;
+      if (shot.note) {
+        shotText += `\n    User note: "${shot.note}"`;
+      }
       content.push({
         type: 'text',
-        text: `Screenshot region: ${formatDimensions(shot)}`,
+        text: shotText,
       });
     }
   }
@@ -124,6 +129,9 @@ export function renderSelections(selections: SelectionData[] | null | undefined)
       text: `Element selections (${elements.length}):\n${elements
         .map((e) => {
           let text = `  - [${e.id}] ${e.tagName} "${e.selector}" (${formatDimensions(e)})\n    ${e.hint}`;
+          if (e.note) {
+            text += `\n    User note: "${e.note}"`;
+          }
           if (e.computedStyles && Object.keys(e.computedStyles).length > 0) {
             const styleLines = Object.entries(e.computedStyles)
               .map(([prop, value]) => `      ${prop}: ${value}`)

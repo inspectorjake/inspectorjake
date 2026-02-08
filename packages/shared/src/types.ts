@@ -54,6 +54,7 @@ interface BaseSelection {
   image: string; // data:image/png;base64,...
   width: number;
   height: number;
+  note?: string;
 }
 
 // Element selection - CSS selector + element metadata
@@ -130,6 +131,7 @@ export interface GetSelectionsResponse {
     rect: { x: number; y: number; width: number; height: number };
     computedStyles?: Record<string, string>;
     hint?: string;
+    note?: string;
   }>;
 }
 

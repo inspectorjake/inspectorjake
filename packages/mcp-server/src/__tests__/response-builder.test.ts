@@ -196,4 +196,35 @@ describe('renderSelections', () => {
     const content = renderSelections(selections);
     expect(content[0].text).toContain('Use view_user_selection_image with imageId="el-1"');
   });
+
+  it('should include note for element selections', () => {
+    const selections = [
+      createElementSelection({ note: 'Center this vertically' }),
+    ];
+    const content = renderSelections(selections);
+    expect(content[0].text).toContain('User note: "Center this vertically"');
+  });
+
+  it('should include note for screenshot selections', () => {
+    const selections = [
+      createScreenshotSelection({ note: 'This button color is wrong' }),
+    ];
+    const content = renderSelections(selections);
+    const textItem = content.find(c => c.type === 'text');
+    expect(textItem?.text).toContain('User note: "This button color is wrong"');
+  });
+
+  it('should omit note when empty or undefined', () => {
+    const selections = [
+      createElementSelection({ note: undefined }),
+      createElementSelection({ id: 'el-2', selector: 'span.other', note: '' }),
+      createScreenshotSelection({ note: undefined }),
+    ];
+    const content = renderSelections(selections);
+    for (const item of content) {
+      if (item.type === 'text') {
+        expect(item.text).not.toContain('User note');
+      }
+    }
+  });
 });
