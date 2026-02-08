@@ -64,46 +64,22 @@ function writeToFile(message: string): void {
 
 // ALL methods use console.error (stderr) - MCP protocol requirement
 // Also writes to LOG_FILE for easy tailing
+function createLogMethod(level: LogLevel) {
+  return (component: string, ...args: unknown[]): void => {
+    if (shouldLog(level)) {
+      const msg = `${formatTimestamp()} ${PREFIX} [${level.toUpperCase()}] [${component}] ${formatArgs(args)}`;
+      console.error(msg);
+      writeToFile(msg);
+    }
+  };
+}
+
 export const log = {
-  trace: (component: string, ...args: unknown[]): void => {
-    if (shouldLog('trace')) {
-      const msg = `${formatTimestamp()} ${PREFIX} [TRACE] [${component}] ${formatArgs(args)}`;
-      console.error(msg);
-      writeToFile(msg);
-    }
-  },
-
-  debug: (component: string, ...args: unknown[]): void => {
-    if (shouldLog('debug')) {
-      const msg = `${formatTimestamp()} ${PREFIX} [DEBUG] [${component}] ${formatArgs(args)}`;
-      console.error(msg);
-      writeToFile(msg);
-    }
-  },
-
-  info: (component: string, ...args: unknown[]): void => {
-    if (shouldLog('info')) {
-      const msg = `${formatTimestamp()} ${PREFIX} [INFO] [${component}] ${formatArgs(args)}`;
-      console.error(msg);
-      writeToFile(msg);
-    }
-  },
-
-  warn: (component: string, ...args: unknown[]): void => {
-    if (shouldLog('warn')) {
-      const msg = `${formatTimestamp()} ${PREFIX} [WARN] [${component}] ${formatArgs(args)}`;
-      console.error(msg);
-      writeToFile(msg);
-    }
-  },
-
-  error: (component: string, ...args: unknown[]): void => {
-    if (shouldLog('error')) {
-      const msg = `${formatTimestamp()} ${PREFIX} [ERROR] [${component}] ${formatArgs(args)}`;
-      console.error(msg);
-      writeToFile(msg);
-    }
-  },
+  trace: createLogMethod('trace'),
+  debug: createLogMethod('debug'),
+  info: createLogMethod('info'),
+  warn: createLogMethod('warn'),
+  error: createLogMethod('error'),
 
   setLevel: (level: LogLevel): void => {
     currentLevel = level;

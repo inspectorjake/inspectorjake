@@ -14,7 +14,8 @@ import type {
 } from '@inspector-jake/shared';
 import { log } from './logger.js';
 
-const PING_INTERVAL_MS = 15000;  // Send ping every 15 seconds
+const PING_INTERVAL_MS = 15000;
+const REQUEST_TIMEOUT_MS = 30000;
 
 export interface WsServerInstance {
   port: number;
@@ -66,6 +67,10 @@ export async function createWsServer(port: number): Promise<WsServerInstance> {
       }
     }
 
+    function isClientConnected(): boolean {
+      return clientSocket !== null && clientSocket.readyState === WebSocket.OPEN;
+    }
+
     // Create HTTP server for health endpoint (enables silent discovery pre-checks)
     const httpServer: HttpServer = createServer((req, res) => {
       // CORS headers for cross-origin fetch from extension
@@ -84,7 +89,7 @@ export async function createWsServer(port: number): Promise<WsServerInstance> {
         res.end(JSON.stringify({
           status: 'ok',
           session: sessionName,
-          connected: clientSocket !== null && clientSocket.readyState === WebSocket.OPEN,
+          connected: isClientConnected(),
         }));
         return;
       }
@@ -121,7 +126,7 @@ export async function createWsServer(port: number): Promise<WsServerInstance> {
 
         sendToolRequest: (type: ToolType, payload: unknown): Promise<ToolResponse> => {
           return new Promise((resolveReq, rejectReq) => {
-            if (!clientSocket || clientSocket.readyState !== WebSocket.OPEN) {
+            if (!isClientConnected()) {
               resolveReq({
                 id: '',
                 success: false,
@@ -137,7 +142,7 @@ export async function createWsServer(port: number): Promise<WsServerInstance> {
             const timeout = setTimeout(() => {
               pendingRequests.delete(id);
               rejectReq(new Error('Request timed out'));
-            }, 30000);
+            }, REQUEST_TIMEOUT_MS);
 
             pendingRequests.set(id, {
               resolve: resolveReq,
@@ -145,13 +150,11 @@ export async function createWsServer(port: number): Promise<WsServerInstance> {
               timeout,
             });
 
-            clientSocket.send(JSON.stringify(request));
+            clientSocket!.send(JSON.stringify(request));
           });
         },
 
-        isConnected: () => {
-          return clientSocket !== null && clientSocket.readyState === WebSocket.OPEN;
-        },
+        isConnected: isClientConnected,
 
         getDiscoveryInfo: (): DiscoveryResponse => {
           return {
