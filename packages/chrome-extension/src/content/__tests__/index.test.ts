@@ -101,6 +101,46 @@ describe('content picker click suppression', () => {
     expect(targetClickSpy).toHaveBeenCalledTimes(1);
   });
 
+  it('resolves hover target via elementFromPoint when e.target is body (responsive mode)', async () => {
+    await loadContentScript();
+    dispatchContentMessage('START_ELEMENT_PICKER');
+
+    const target = document.getElementById('target') as HTMLButtonElement;
+
+    // Simulate responsive mode: mousemove dispatched from body, but elementFromPoint resolves to target
+    vi.spyOn(document, 'elementFromPoint').mockReturnValue(target);
+
+    document.body.dispatchEvent(mouseEvent('mousemove', 0, 10, 10));
+    document.body.dispatchEvent(mouseEvent('mousedown', 0, 10, 10));
+    document.body.dispatchEvent(mouseEvent('mouseup', 0, 10, 10));
+
+    expect(runtimeSendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'ELEMENT_PICKED' })
+    );
+
+    vi.runAllTimers();
+  });
+
+  it('resolves element on mousedown when hoveredElement is null (touch mode)', async () => {
+    await loadContentScript();
+    dispatchContentMessage('START_ELEMENT_PICKER');
+
+    const target = document.getElementById('target') as HTMLButtonElement;
+
+    // Simulate touch mode: no prior mousemove, elementFromPoint resolves target
+    vi.spyOn(document, 'elementFromPoint').mockReturnValue(target);
+
+    // Skip mousemove — go straight to mousedown/mouseup (touch behavior)
+    document.body.dispatchEvent(mouseEvent('mousedown', 0, 10, 10));
+    document.body.dispatchEvent(mouseEvent('mouseup', 0, 10, 10));
+
+    expect(runtimeSendMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'ELEMENT_PICKED' })
+    );
+
+    vi.runAllTimers();
+  });
+
   it('suppresses left click-through after drag region selection', async () => {
     await loadContentScript();
     dispatchContentMessage('START_ELEMENT_PICKER');

@@ -243,6 +243,39 @@ let isDragging = false;
 let suppressNextLeftClick = false;
 const DRAG_THRESHOLD = 10; // pixels - if mouse moves more than this, it's a drag
 
+/**
+ * Resolve the actual target element from a mouse event.
+ * In Chrome responsive/device mode, e.target often resolves to body/html
+ * instead of the actual element. Falls back to elementFromPoint.
+ */
+function resolveTarget(e: MouseEvent): Element | null {
+  const target = e.target as Element;
+
+  // Skip our own overlays
+  if (target === highlightOverlay || target === labelOverlay || target === dragRegionOverlay) {
+    return null;
+  }
+
+  // If target is a concrete element, use it directly
+  if (target !== document.documentElement && target !== document.body) {
+    return target;
+  }
+
+  // Fallback: use elementFromPoint (fixes responsive/device mode)
+  const resolved = document.elementFromPoint(e.clientX, e.clientY);
+  if (
+    !resolved ||
+    resolved === document.documentElement ||
+    resolved === document.body ||
+    resolved === highlightOverlay ||
+    resolved === labelOverlay ||
+    resolved === dragRegionOverlay
+  ) {
+    return null;
+  }
+  return resolved;
+}
+
 function onMouseMove(e: MouseEvent) {
   if (!isPicking) return;
 
@@ -263,19 +296,11 @@ function onMouseMove(e: MouseEvent) {
   }
 
   // Normal hover highlighting for element selection
-  const target = e.target as Element;
-  if (
-    target === highlightOverlay ||
-    target === labelOverlay ||
-    target === dragRegionOverlay ||
-    target === document.documentElement ||
-    target === document.body
-  ) {
-    return;
-  }
+  const resolved = resolveTarget(e);
+  if (!resolved) return;
 
-  hoveredElement = target;
-  updateHighlight(target);
+  hoveredElement = resolved;
+  updateHighlight(resolved);
 }
 
 function onMouseLeave() {
@@ -291,6 +316,15 @@ function onMouseDown(e: MouseEvent) {
   e.preventDefault();
   dragStartPos = { x: e.clientX, y: e.clientY };
   isDragging = false;
+
+  // Touch mode: no mousemove fires before mousedown, so resolve now
+  if (!hoveredElement) {
+    const resolved = resolveTarget(e);
+    if (resolved) {
+      hoveredElement = resolved;
+      updateHighlight(resolved);
+    }
+  }
 }
 
 function onMouseUp(e: MouseEvent) {
@@ -439,6 +473,7 @@ function startPicking() {
   document.head.appendChild(cursorStyleTag);
 
   document.addEventListener('mousemove', onMouseMove, true);
+  document.addEventListener('pointermove', onMouseMove as EventListener, true);
   document.addEventListener('mouseleave', onMouseLeave, true);
   document.addEventListener('mousedown', onMouseDown, true);
   document.addEventListener('mouseup', onMouseUp, true);
@@ -455,6 +490,7 @@ function stopPicking() {
   isDragging = false;
 
   document.removeEventListener('mousemove', onMouseMove, true);
+  document.removeEventListener('pointermove', onMouseMove as EventListener, true);
   document.removeEventListener('mouseleave', onMouseLeave, true);
   document.removeEventListener('mousedown', onMouseDown, true);
   document.removeEventListener('mouseup', onMouseUp, true);
