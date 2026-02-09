@@ -29,7 +29,7 @@ export const toolDefs: ToolDef[] = [
   {
     name: 'get_user_selections',
     description:
-      'Get all user selections from the DevTools panel. Returns an array of selections - either element selections (with selector metadata, use view_user_selection_image to see the screenshot) or screenshot selections (with full image data inline). Selections may include user notes with instructions for the LLM about what the user wants done with each selection.',
+      'Get all user selections from the DevTools panel. Returns an array of selections - either element selections (with selector metadata, use view_user_selection_image to see the screenshot) or screenshot selections (with full image data inline). Selections may include user notes, change requests, or comments about specific selected items.',
     inputSchema: {
       type: 'object' as const,
       properties: {},

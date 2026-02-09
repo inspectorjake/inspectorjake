@@ -42,7 +42,13 @@ npx inspector-jake-mcp
 
 ### 2. Configure Claude Desktop
 
-Add to your Claude Desktop config (`~/.config/claude/claude_desktop_config.json` on macOS/Linux):
+Easy install with Claude CLI:
+
+```bash
+claude mcp add --transport stdio inspector-jake -- npx -y inspector-jake-mcp
+```
+
+Or add it manually to your Claude Desktop config (`~/.config/claude/claude_desktop_config.json` on macOS/Linux):
 
 ```json
 {
