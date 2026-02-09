@@ -80,19 +80,24 @@ function onNoteInput(event: Event) {
 
       <!-- Right column: Note + Inspector + Logs -->
       <div class="flex flex-col gap-3 overflow-hidden min-h-0">
-        <!-- Note editor -->
-        <div v-if="expandedSelection" class="shrink-0">
-          <div class="relative">
+        <!-- Note editor — light "notepad" card -->
+        <div v-if="expandedSelection" class="shrink-0 relative overflow-hidden rounded-lg bg-[#faf8f0] border border-[#e8e4d4] shadow-[0_1px_3px_rgba(0,0,0,0.25)]">
+          <div class="px-3 pt-2.5 pb-0.5 border-b border-[#ede9d9]">
+            <label class="block text-[11px] font-bold text-[#5a5647] uppercase tracking-widest">Jake's notes</label>
+          </div>
+          <div class="relative px-3 pt-1.5 pb-2">
             <textarea
               :value="noteText"
               @input="onNoteInput"
               rows="2"
               maxlength="500"
               placeholder="Add a note for the LLM... e.g. 'I want this vertically centered'"
-              class="w-full bg-obsidian-800 border border-obsidian-600 rounded-md px-3 py-2 text-xs text-gray-300 font-mono placeholder:text-gray-600 resize-none focus:outline-none focus:border-lime-accent/40 transition-colors"
+              class="w-full bg-transparent border-none text-sm text-[#2a2520] font-mono placeholder:text-[#b0a890] resize-none focus:outline-none transition-colors"
             />
-            <span class="absolute bottom-1.5 right-2 text-[9px] text-gray-600 font-mono">{{ noteText.length }}/500</span>
+            <span class="absolute bottom-2 right-3 text-[11px] text-[#b0a890] font-mono">{{ noteText.length }}/500</span>
           </div>
+          <!-- Pencil-notepad watermark -->
+          <img src="/assets/jake-notes-deco.svg" alt="" class="absolute bottom-1 right-1 w-10 h-10 opacity-[0.08] pointer-events-none select-none" />
         </div>
 
         <InspectorPanel

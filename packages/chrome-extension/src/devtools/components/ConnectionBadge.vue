@@ -20,7 +20,7 @@ defineProps<{
         <span class="relative inline-flex rounded-full h-2 w-2 bg-lime-accent"></span>
       </span>
       <span class="text-xs font-mono text-lime-accent tracking-tight">
-        Connected: {{ sessionName }}
+        Connected to {{ sessionName }}
       </span>
     </template>
 

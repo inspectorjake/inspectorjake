@@ -13,16 +13,6 @@ defineProps<{
 
 <template>
   <div class="h-full border border-obsidian-600 rounded-lg bg-obsidian-800/50 relative overflow-hidden flex flex-col shadow-inner group">
-    <!-- Info badge (top-left) -->
-    <div
-      v-if="image"
-      class="absolute top-3 left-3 px-2 py-1 bg-obsidian-700/90 backdrop-blur rounded text-[10px] font-mono text-lime-accent border border-obsidian-600 z-10 shadow-sm flex gap-2"
-    >
-      <span>PREVIEW: {{ width }} x {{ height }}px</span>
-      <span class="text-gray-500">|</span>
-      <span class="text-gray-400">100%</span>
-    </div>
-
     <!-- Content area -->
     <div
       class="flex-1 flex items-center justify-center p-12 relative overflow-hidden min-h-0"

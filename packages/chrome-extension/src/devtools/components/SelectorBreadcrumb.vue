@@ -32,9 +32,6 @@ async function handleCopy() {
     <!-- Left: breadcrumb path -->
     <div class="flex items-center gap-2 text-xs font-mono overflow-hidden">
       <span class="text-gray-500 shrink-0">Workspace /</span>
-      <span class="text-gray-300 font-bold shrink-0">
-        {{ selector ? 'Element Inspection' : 'Screenshot' }}
-      </span>
       <template v-if="selector">
         <span class="text-lime-accent/60 mx-1">/</span>
         <span class="text-lime-accent truncate" :title="selector">

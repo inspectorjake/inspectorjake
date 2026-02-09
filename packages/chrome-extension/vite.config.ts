@@ -75,6 +75,12 @@ function copyStaticFiles() {
         resolve(fontsDir, 'jetbrains-mono.woff2')
       );
 
+      // Copy decorative SVGs
+      copyFileSync(
+        resolve(__dirname, 'assets/jake-notes-deco.svg'),
+        resolve(distDir, 'assets/jake-notes-deco.svg')
+      );
+
       console.log('Static files copied to dist/');
     }
   };
