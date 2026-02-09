@@ -95,7 +95,7 @@ export interface GetPageInfoResponse extends PageInfo {}
 
 // WebSocket message types (MCP Server <-> Extension)
 export type ToolType =
-  | 'get_user_selections'
+  | 'get_jakes_notes'
   | 'view_user_selection_image'
   | 'get_page_info'
   | 'get_session_info'

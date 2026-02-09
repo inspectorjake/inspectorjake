@@ -27,7 +27,7 @@ interface ToolDef {
 export const toolDefs: ToolDef[] = [
   // --- Custom response handlers ---
   {
-    name: 'get_user_selections',
+    name: 'get_jakes_notes',
     description:
       'Get all user selections from the DevTools panel. Returns an array of selections - either element selections (with selector metadata, use view_user_selection_image to see the screenshot) or screenshot selections (with full image data inline). Selections may include user notes, change requests, or comments about specific selected items.',
     inputSchema: {
@@ -48,13 +48,13 @@ export const toolDefs: ToolDef[] = [
   {
     name: 'view_user_selection_image',
     description:
-      'View a stored user selection image by its ID. Use this when you need to see element screenshots. Call get_user_selections first to get available image IDs.',
+      'View a stored user selection image by its ID. Use this when you need to see element screenshots. Call get_jakes_notes first to get available image IDs.',
     inputSchema: {
       type: 'object' as const,
       properties: {
         imageId: {
           type: 'string',
-          description: 'The image ID from get_user_selections response',
+          description: 'The image ID from get_jakes_notes response',
         },
       },
       required: ['imageId'],

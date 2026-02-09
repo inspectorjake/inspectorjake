@@ -170,7 +170,7 @@ export async function handleToolRequest(
 
   try {
     switch (type) {
-      case 'get_user_selections':
+      case 'get_jakes_notes':
         return {
           id,
           success: true,
@@ -285,7 +285,7 @@ export async function handleToolRequest(
 }
 
 /**
- * Handle get_user_selections tool.
+ * Handle get_jakes_notes tool.
  * Returns all selections with differentiated response format.
  */
 function handleGetSelections(): { selections: SelectionResponse[] } {
