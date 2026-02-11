@@ -24,6 +24,7 @@ type Tab = 'CSS' | 'ACCESSIBILITY';
 const activeTab = ref<Tab>('CSS');
 
 const STYLE_MODES = [
+  { value: ComputedStylesMode.NONE, label: 'None' },
   { value: ComputedStylesMode.LEAN, label: 'Lean' },
   { value: ComputedStylesMode.NON_DEFAULT, label: 'Non-Default' },
   { value: ComputedStylesMode.ALL, label: 'All' },
@@ -57,7 +58,7 @@ const STYLE_MODES = [
 
       <!-- Styles mode toggle (only visible on CSS tab) -->
       <div v-if="activeTab === 'CSS'" class="flex items-center gap-2">
-        <span class="text-[9px] text-gray-500 uppercase tracking-wide">Styles:</span>
+        <span class="text-[9px] text-gray-500 uppercase tracking-wide">Send Styles:</span>
         <div class="flex border border-obsidian-600 rounded overflow-hidden">
           <button
             v-for="mode in STYLE_MODES"

@@ -5,6 +5,7 @@ export enum ComputedStylesMode {
   ALL = 'all',
   NON_DEFAULT = 'non-default',
   LEAN = 'lean',
+  NONE = 'none',
 }
 
 export const LEAN_PROPERTIES = [

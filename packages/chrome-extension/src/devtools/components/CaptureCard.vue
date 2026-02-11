@@ -16,6 +16,8 @@ const props = defineProps<{
 const emit = defineEmits<{
   select: []
   delete: []
+  'hover-start': []
+  'hover-end': []
 }>()
 
 /** Formatted display name based on selection type */
@@ -43,6 +45,12 @@ const truncatedSelector = computed(() => {
   return props.selection.selector
 })
 
+/** Screenshot unavailable reason (element selections only) */
+const screenshotUnavailableReason = computed(() => {
+  if (props.selection.type !== 'element') return null
+  return props.selection.screenshotUnavailableReason ?? null
+})
+
 /** Truncated note preview for the card */
 const notePreview = computed(() => {
   const note = props.selection.note
@@ -59,6 +67,8 @@ const notePreview = computed(() => {
         ? 'bg-obsidian-800 border-lime-accent/40 shadow-lg shadow-black/20'
         : 'bg-transparent border-obsidian-700 hover:border-obsidian-500 hover:bg-obsidian-800/50'
     ]"
+    @mouseenter="emit('hover-start')"
+    @mouseleave="emit('hover-end')"
     @click="emit('select')"
   >
     <!-- Active left bar -->
@@ -117,6 +127,11 @@ const notePreview = computed(() => {
           class="w-full h-full object-cover"
           :alt="displayName"
         />
+        <span
+          v-else-if="screenshotUnavailableReason"
+          class="text-[8px] text-gray-500 font-mono text-center leading-tight px-0.5"
+          :title="screenshotUnavailableReason"
+        >No preview</span>
         <span v-else class="text-[9px] text-gray-600 font-mono">IMG</span>
       </div>
 

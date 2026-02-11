@@ -116,11 +116,16 @@ async function handleMessage(
       // Also update the selected element in tool handlers
       const { element } = message;
       const tabId = sender.tab?.id;
+      const frameId = sender.frameId ?? 0;
+      log.debug('Background', `ELEMENT_PICKED: frameId=${frameId}, isIframe=${frameId !== 0}, tabId=${tabId}, selector=${element?.selector ?? 'none'}`);
+      if (element) {
+        element.frameId = frameId;
+      }
       if (tabId) {
         updateSelectedElement(tabId, element);
       }
       // Broadcast to all extension contexts (panel will receive this)
-      chrome.runtime.sendMessage(message).catch(() => {});
+      chrome.runtime.sendMessage({ ...message, element }).catch(() => {});
       return { success: true };
     }
 
@@ -155,7 +160,9 @@ async function handleMessage(
       if (!tabId) {
         return { success: false, error: 'No tab ID' };
       }
-      const image = await captureElementScreenshot(tabId, message.rect);
+      log.debug('Background', `CAPTURE_ELEMENT_SCREENSHOT: tabId=${tabId}, frameId=${message.frameId ?? 'none'}, selector=${message.selector ?? 'none'}`);
+      const image = await captureElementScreenshot(tabId, message.rect, message.selector, message.frameId);
+      log.debug('Background', `CAPTURE_ELEMENT_SCREENSHOT result: ${image ? 'screenshot captured' : 'null (no screenshot)'}`);
       return { success: true, image };
     }
 
@@ -185,11 +192,18 @@ async function handleMessage(
       const { mode } = message;
       const { tabId: connectedTabId } = getConnectionStatus();
       if (connectedTabId) {
-        chrome.scripting.executeScript({
-          target: { tabId: connectedTabId },
-          func: (m: string) => { (window as any).__jakesVibeComputedStylesMode = m; },
-          args: [mode],
-        });
+        try {
+          await chrome.scripting.executeScript({
+            target: { tabId: connectedTabId },
+            func: (m: string) => { (window as any).__jakesVibeComputedStylesMode = m; },
+            args: [mode],
+          });
+        } catch (err) {
+          return {
+            success: false,
+            error: err instanceof Error ? err.message : 'Failed to set computed styles mode',
+          };
+        }
       }
       return { success: true };
     }

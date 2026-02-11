@@ -24,6 +24,9 @@ export interface ElementInfo {
     bottom: number;
     left: number;
   };
+  frameId?: number;
+  framePath?: number[];
+  screenshotUnavailableReason?: string;
 }
 
 // Page info
@@ -67,6 +70,8 @@ export interface ElementSelection extends BaseSelection {
   attributes: Array<{ name: string; value: string }>;
   computedStyles?: Record<string, string>;
   a11yPath?: string;
+  frameId?: number;
+  screenshotUnavailableReason?: string;
 }
 
 // Screenshot selection - just a region capture

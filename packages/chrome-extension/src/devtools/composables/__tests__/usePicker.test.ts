@@ -175,12 +175,13 @@ describe('usePicker', () => {
       mockSendMessage.mockResolvedValue({ image: 'data:image/png;base64,abc123' });
 
       const rect = { x: 10, y: 20, width: 100, height: 50 };
-      const result = await captureElementScreenshot(rect);
+      const result = await captureElementScreenshot(rect, 'button.cta');
 
       expect(mockSendMessage).toHaveBeenCalledWith({
         type: 'CAPTURE_ELEMENT_SCREENSHOT',
         rect,
         tabId: 123,
+        selector: 'button.cta',
       });
       expect(result).toBe('data:image/png;base64,abc123');
     });

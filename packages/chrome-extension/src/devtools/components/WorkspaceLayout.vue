@@ -75,6 +75,7 @@ function onNoteInput(event: Event) {
           :image="expandedSelection?.image ?? null"
           :width="expandedSelection?.width ?? 0"
           :height="expandedSelection?.height ?? 0"
+          :screenshot-unavailable-reason="isElement(expandedSelection) ? expandedSelection.screenshotUnavailableReason : undefined"
         />
       </div>
 

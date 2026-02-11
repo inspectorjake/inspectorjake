@@ -21,6 +21,8 @@ defineProps<{
 const emit = defineEmits<{
   'select': [id: string];
   'delete': [id: string];
+  'hover-selection-start': [selection: Selection];
+  'hover-selection-end': [];
   'connect': [session: DiscoveredSession];
   'scan': [];
   'pick': [];
@@ -80,6 +82,8 @@ const emit = defineEmits<{
           :index="i + 1"
           @select="emit('select', sel.id)"
           @delete="emit('delete', sel.id)"
+          @hover-start="emit('hover-selection-start', sel)"
+          @hover-end="emit('hover-selection-end')"
         />
 
         <!-- Add New Capture button -->

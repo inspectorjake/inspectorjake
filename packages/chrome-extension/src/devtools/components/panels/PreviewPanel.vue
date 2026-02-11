@@ -8,6 +8,7 @@ defineProps<{
   image: string | null;
   width: number;
   height: number;
+  screenshotUnavailableReason?: string;
 }>();
 </script>
 
@@ -83,7 +84,19 @@ defineProps<{
         <div class="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-lime-accent border-2 border-black rounded-sm z-20" />
       </div>
 
-      <!-- Placeholder when no image -->
+      <!-- Placeholder: selection exists but screenshot unavailable -->
+      <div v-else-if="screenshotUnavailableReason && width > 0" class="flex flex-col items-center justify-center gap-3 text-center">
+        <!-- Frame icon -->
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" class="text-gray-600">
+          <rect x="2" y="2" width="20" height="20" rx="2" />
+          <line x1="2" y1="8" x2="22" y2="8" />
+          <line x1="8" y1="2" x2="8" y2="8" />
+        </svg>
+        <span class="text-xs text-gray-500 font-mono">{{ width }}px &times; {{ height }}px</span>
+        <span class="text-[10px] text-gray-600">{{ screenshotUnavailableReason }}</span>
+      </div>
+
+      <!-- Placeholder: nothing selected -->
       <div v-else class="flex flex-col items-center justify-center gap-3 text-center">
         <!-- Crosshair icon -->
         <svg

@@ -67,7 +67,7 @@ function formatTime(): string {
  */
 export function useLogs(): UseLogsReturn {
   const logs = ref<LogEntry[]>([]);
-  const showLogs = ref(true);
+  const showLogs = ref(false);
 
   function addLog(level: LogLevel, source: LogSource, message: string): void {
     const entry: LogEntry = {

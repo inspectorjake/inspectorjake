@@ -56,7 +56,11 @@ export function useSelections() {
    */
   async function addElementSelection(
     element: ElementInfo,
-    captureScreenshot?: (rect: { x: number; y: number; width: number; height: number }) => Promise<string | null>
+    captureScreenshot?: (
+      rect: { x: number; y: number; width: number; height: number },
+      selector?: string,
+      frameId?: number
+    ) => Promise<string | null>
   ): Promise<void> {
     if (!element?.rect) return;
 
@@ -76,8 +80,9 @@ export function useSelections() {
     // Capture screenshot if callback provided
     let screenshot: string | null = null;
     if (captureScreenshot) {
-      screenshot = await captureScreenshot(element.rect);
-      if (!screenshot) return;
+      log.debug('useSelections', `Capturing screenshot for selector=${element.selector}, frameId=${element.frameId ?? 'none (top frame)'}`);
+      screenshot = await captureScreenshot(element.rect, element.selector, element.frameId);
+      log.debug('useSelections', `Screenshot result: ${screenshot ? 'captured' : 'null'}, frameId=${element.frameId ?? 'none'}`);
     }
 
     const newSelection: ElementSelection = {
@@ -94,9 +99,12 @@ export function useSelections() {
       attributes: element.attributes,
       computedStyles: element.computedStyles,
       a11yPath: element.a11yPath,
+      frameId: element.frameId,
+      screenshotUnavailableReason: screenshot ? undefined : 'Screenshot unavailable (iframe restrictions)',
     };
 
     selections.value.push(newSelection);
+    log.debug('useSelections', `Selection added: id=${newSelection.id}, frameId=${element.frameId ?? 'none'}, hasImage=${!!screenshot}, reason=${newSelection.screenshotUnavailableReason ?? 'n/a'}`);
 
     // Auto-expand the new selection
     expandedId.value = newSelection.id;
@@ -177,12 +185,14 @@ export function useSelections() {
     }
 
     try {
+      const options = selection.frameId !== undefined ? { frameId: selection.frameId } : undefined;
+      log.debug('useSelections', `refreshExpandedStyles: selector=${selection.selector}, frameId=${selection.frameId ?? 'none (broadcast)'}`);
       const response = await chrome.tabs.sendMessage(tabId, {
         type: 'REFRESH_ELEMENT_STYLES',
         selector: selection.selector,
-      });
+      }, options as any);
 
-      if (response?.success && response.computedStyles) {
+      if (response?.success) {
         selection.computedStyles = response.computedStyles;
         syncSelectionsToBackground();
       }

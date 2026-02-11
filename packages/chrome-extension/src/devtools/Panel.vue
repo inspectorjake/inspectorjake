@@ -4,8 +4,9 @@
  * Composes child components and wires composable state.
  */
 
-import { computed, ref, onMounted, onUnmounted, watch } from 'vue';
-import type { ElementInfo } from '@inspector-jake/shared';
+import { computed, ref, onMounted, onUnmounted } from 'vue';
+import { ComputedStylesMode } from '@inspector-jake/shared';
+import type { ElementInfo, Selection } from '@inspector-jake/shared';
 import {
   useSelections,
   useConnection,
@@ -21,7 +22,7 @@ import ViewToggleBar from './components/ViewToggleBar.vue';
 import AppHeader from './components/AppHeader.vue';
 import CapturesSidebar from './components/CapturesSidebar.vue';
 import WorkspaceLayout from './components/WorkspaceLayout.vue';
-import SettingsDropdown from './components/SettingsDropdown.vue';
+import SettingsPanel from './components/SettingsPanel.vue';
 
 // ============================================================================
 // Composables
@@ -63,13 +64,21 @@ const {
   isCoolingDown,
   startElementPicker,
   stopElementPicker,
+  highlightSelector,
+  clearHighlight,
   captureElementScreenshot,
   cancelPicking,
 } = usePicker();
 
 const { logs, showLogs, addLog, clearLogs, toggleLogs } = useLogs();
-const { computedStylesMode, maxScreenshotDimension } = useSettings();
+const {
+  computedStylesMode,
+  maxScreenshotDimension,
+  autoClearSelectionsAfterSeen,
+  setComputedStylesMode,
+} = useSettings();
 const showSettings = ref(false);
+let modeUpdateToken = 0;
 function toggleSettings() { showSettings.value = !showSettings.value; }
 
 // ============================================================================
@@ -79,9 +88,16 @@ function toggleSettings() { showSettings.value = !showSettings.value; }
 const error = computed(() => connectionError.value || pickerError.value);
 const hasLogErrors = computed(() => logs.value.some(l => l.level === LogLevel.ERROR));
 
-watch(computedStylesMode, async () => {
+async function handleComputedStylesModeUpdate(mode: ComputedStylesMode): Promise<void> {
+  const token = ++modeUpdateToken;
+  await setComputedStylesMode(mode);
+
+  if (token !== modeUpdateToken) {
+    return;
+  }
+
   await refreshExpandedStyles();
-});
+}
 
 // ============================================================================
 // Message Types
@@ -95,6 +111,7 @@ const MessageType = {
   PICKER_CANCELLED: 'PICKER_CANCELLED',
   REGION_SELECTED: 'REGION_SELECTED',
   REGION_CANCELLED: 'REGION_CANCELLED',
+  SELECTIONS_AUTO_CLEARED: 'SELECTIONS_AUTO_CLEARED',
 } as const;
 
 type MessageTypeValue = typeof MessageType[keyof typeof MessageType];
@@ -123,6 +140,19 @@ async function connectToSession(session: DiscoveredSession): Promise<void> {
   if (success) {
     await syncSelectionsToBackground();
   }
+}
+
+async function handleSelectionHoverStart(selection: Selection): Promise<void> {
+  if (selection.type !== 'element' || !selection.selector) {
+    clearHighlight();
+    return;
+  }
+
+  await highlightSelector(selection.selector, selection.frameId);
+}
+
+function handleSelectionHoverEnd(): void {
+  clearHighlight();
 }
 
 async function handleMessage(message: { type: string; [key: string]: unknown }): Promise<void> {
@@ -170,6 +200,10 @@ async function handleMessage(message: { type: string; [key: string]: unknown }):
     case MessageType.REGION_CANCELLED:
       cancelPicking();
       break;
+
+    case MessageType.SELECTIONS_AUTO_CLEARED:
+      clearAllSelections();
+      break;
   }
 }
 
@@ -194,6 +228,7 @@ onMounted(async () => {
 onUnmounted(() => {
   chrome.runtime.onMessage.removeListener(handleMessage);
   stopStatusPolling();
+  clearHighlight();
   if (isPicking.value) {
     stopElementPicker();
   }
@@ -201,7 +236,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="h-full flex flex-col overflow-hidden bg-obsidian-900 text-gray-300 font-display antialiased" @click="handlePanelClick">
+  <div class="relative h-full flex flex-col overflow-hidden bg-obsidian-900 text-gray-300 font-display antialiased" @click="handlePanelClick">
     <!-- View toggle bar -->
     <ViewToggleBar />
 
@@ -218,13 +253,6 @@ onUnmounted(() => {
       @toggle-picker="handlePickerClick"
       @toggle-logs="toggleLogs"
       @toggle-settings="toggleSettings"
-    />
-
-    <!-- Settings dropdown -->
-    <SettingsDropdown
-      v-if="showSettings"
-      :max-screenshot-dimension="maxScreenshotDimension"
-      @update:max-screenshot-dimension="maxScreenshotDimension = $event"
     />
 
     <!-- Error banner -->
@@ -255,6 +283,8 @@ onUnmounted(() => {
         @scan="scanForSessions"
         @pick="handlePickerClick"
         @clear-all="clearAllSelections"
+        @hover-selection-start="handleSelectionHoverStart"
+        @hover-selection-end="handleSelectionHoverEnd"
       />
 
       <!-- Workspace: preview + inspector + logs -->
@@ -266,9 +296,16 @@ onUnmounted(() => {
         :computed-styles-mode="computedStylesMode"
         @clear-logs="clearLogs"
         @close-logs="toggleLogs"
-        @update:computed-styles-mode="computedStylesMode = $event"
+        @update:computed-styles-mode="handleComputedStylesModeUpdate"
         @update:note="updateSelectionNote"
       />
     </div>
+
+    <!-- Settings panel (slides from right) -->
+    <SettingsPanel
+      :open="showSettings"
+      @close="toggleSettings"
+      @mode-changed="refreshExpandedStyles"
+    />
   </div>
 </template>

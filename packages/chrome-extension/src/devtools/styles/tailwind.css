@@ -35,6 +35,24 @@
   src: url('/assets/fonts/jetbrains-mono.woff2') format('woff2');
 }
 
+/* Consistent hand cursor for clickable controls */
+button,
+a[href],
+[role='button'],
+summary,
+input[type='button'],
+input[type='submit'],
+input[type='reset'] {
+  cursor: pointer;
+}
+
+button:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled {
+  cursor: not-allowed;
+}
+
 /* Custom scrollbar */
 @utility custom-scrollbar {
   &::-webkit-scrollbar {
@@ -78,4 +96,51 @@
 
 @utility logs-slide-leave-active {
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Settings panel slide-in from right */
+@utility settings-slide-enter-active {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@utility settings-slide-leave-active {
+  transition: transform 0.2s cubic-bezier(0.4, 0, 1, 1);
+}
+
+@utility settings-slide-enter-from {
+  transform: translateX(100%);
+}
+
+@utility settings-slide-leave-to {
+  transform: translateX(100%);
+}
+
+/* Custom range slider — industrial instrument look */
+.settings-range-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: #3a3a3a;
+  border-radius: 2px;
+  outline: none;
+}
+
+.settings-range-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #bef264;
+  border: 2px solid #050505;
+  cursor: pointer;
+  box-shadow: 0 0 6px rgba(190, 242, 100, 0.3);
+  transition: box-shadow 0.15s ease;
+}
+
+.settings-range-slider::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 12px rgba(190, 242, 100, 0.5);
+}
+
+.settings-range-slider::-webkit-slider-thumb:active {
+  box-shadow: 0 0 16px rgba(190, 242, 100, 0.7);
 }

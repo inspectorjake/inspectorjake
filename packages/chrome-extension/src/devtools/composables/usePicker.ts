@@ -30,9 +30,9 @@ export interface UsePickerReturn {
   isCoolingDown: Readonly<Ref<boolean>>;
   startElementPicker: () => Promise<void>;
   stopElementPicker: () => void;
-  highlightSelector: (selector: string) => Promise<void>;
-  clearHighlight: () => void;
-  captureElementScreenshot: (rect: BoundingRect) => Promise<string | null>;
+  highlightSelector: (selector: string, frameId?: number) => Promise<void>;
+  clearHighlight: (frameId?: number) => void;
+  captureElementScreenshot: (rect: BoundingRect, selector?: string, frameId?: number) => Promise<string | null>;
   cancelPicking: () => void;
 }
 
@@ -48,20 +48,26 @@ function getTabId(): number | undefined {
 
 /**
  * Send message to content script, injecting it first if needed.
+ * When frameId is specified, targets that specific frame.
  */
 async function sendToContentScript(
   tabId: number,
-  message: { type: string; [key: string]: unknown }
+  message: { type: string; [key: string]: unknown },
+  frameId?: number
 ): Promise<void> {
+  const options = frameId !== undefined ? { frameId } : undefined;
   try {
-    await chrome.tabs.sendMessage(tabId, message);
+    await chrome.tabs.sendMessage(tabId, message, options as any);
   } catch {
     // Content script might not be injected yet
+    const scriptTarget: chrome.scripting.InjectionTarget = frameId !== undefined
+      ? { tabId, frameIds: [frameId] }
+      : { tabId };
     await chrome.scripting.executeScript({
-      target: { tabId },
+      target: scriptTarget,
       files: ['src/content/index.js'],
     });
-    await chrome.tabs.sendMessage(tabId, message);
+    await chrome.tabs.sendMessage(tabId, message, options as any);
   }
 }
 
@@ -100,40 +106,53 @@ export function usePicker(): UsePickerReturn {
     isPicking.value = false;
   }
 
-  async function highlightSelector(selector: string): Promise<void> {
+  async function highlightSelector(selector: string, frameId?: number): Promise<void> {
     const tabId = getTabId();
     if (!tabId || !selector) return;
 
     try {
+      log.debug('usePicker', `highlightSelector: selector=${selector}, frameId=${frameId ?? 'none (broadcast)'}`);
+      const options = frameId !== undefined ? { frameId } : undefined;
       await chrome.tabs.sendMessage(tabId, {
         type: PickerMessageType.HIGHLIGHT,
         selector,
-      });
+      }, options as any);
     } catch {
       // Content script not loaded, ignore
     }
   }
 
-  function clearHighlight(): void {
+  function clearHighlight(frameId?: number): void {
     const tabId = getTabId();
     if (!tabId) return;
 
-    chrome.tabs.sendMessage(tabId, { type: PickerMessageType.CLEAR_HIGHLIGHT }).catch(() => {});
+    // When frameId is known, target that frame; otherwise broadcast to all frames
+    const options = frameId !== undefined ? { frameId } : undefined;
+    chrome.tabs.sendMessage(tabId, { type: PickerMessageType.CLEAR_HIGHLIGHT }, options as any).catch(() => {});
   }
 
-  async function captureElementScreenshot(rect: BoundingRect): Promise<string | null> {
+  async function captureElementScreenshot(rect: BoundingRect, selector?: string, frameId?: number): Promise<string | null> {
     const tabId = getTabId();
     if (!tabId) {
       log.error('usePicker', 'No inspected tab for screenshot');
       return null;
     }
 
+    log.debug('usePicker', `captureElementScreenshot: selector=${selector ?? 'none'}, frameId=${frameId ?? 'none'}, rect=${JSON.stringify(rect)}`);
     try {
-      const response = await chrome.runtime.sendMessage({
+      const message: { type: string; rect: BoundingRect; tabId: number; selector?: string; frameId?: number } = {
         type: PickerMessageType.CAPTURE_SCREENSHOT,
         rect,
         tabId,
-      });
+      };
+      if (selector) {
+        message.selector = selector;
+      }
+      if (frameId !== undefined) {
+        message.frameId = frameId;
+      }
+
+      const response = await chrome.runtime.sendMessage(message);
 
       // Start cooldown to avoid exceeding Chrome's captureVisibleTab quota
       isCoolingDown.value = true;
@@ -141,9 +160,11 @@ export function usePicker(): UsePickerReturn {
         isCoolingDown.value = false;
       }, SCREENSHOT_COOLDOWN_MS);
 
-      return response?.image ?? null;
+      const result = response?.image ?? null;
+      log.debug('usePicker', `captureElementScreenshot result: ${result ? 'captured' : 'null'}, frameId=${frameId ?? 'none'}`);
+      return result;
     } catch (err) {
-      log.error('usePicker', 'Failed to capture element screenshot:', err);
+      log.error('usePicker', `Failed to capture element screenshot (frameId=${frameId ?? 'none'}):`, err);
       return null;
     }
   }

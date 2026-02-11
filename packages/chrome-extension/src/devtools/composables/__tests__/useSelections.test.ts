@@ -348,6 +348,28 @@ describe('useSelections', () => {
       });
     });
 
+    it('should clear computed styles when refresh returns none mode payload', async () => {
+      const { selections, addElementSelection, refreshExpandedStyles } = useSelections();
+      await addElementSelection(createMockElement({
+        selector: 'main > section:nth-of-type(1)',
+        computedStyles: { color: 'rgb(255, 255, 255)' },
+      }));
+      mockSendMessage.mockClear();
+      mockTabSendMessage.mockResolvedValueOnce({
+        success: true,
+        computedStyles: undefined,
+      });
+
+      await refreshExpandedStyles();
+
+      expect(selections.value[0].type).toBe('element');
+      expect((selections.value[0] as any).computedStyles).toBeUndefined();
+      expect(mockSendMessage).toHaveBeenCalledWith({
+        type: 'SYNC_SELECTIONS',
+        selections: expect.any(Array),
+      });
+    });
+
     it('should do nothing when inspected tab id is unavailable', async () => {
       const { addElementSelection, refreshExpandedStyles } = useSelections();
       await addElementSelection(createMockElement());

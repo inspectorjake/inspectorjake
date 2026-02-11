@@ -4,7 +4,7 @@
  * Displays workspace context and provides a copy-to-clipboard action.
  */
 
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 
 const props = defineProps<{
   selector: string | null
@@ -12,12 +12,20 @@ const props = defineProps<{
 }>()
 
 const copied = ref(false)
+const normalizedSelector = computed(() => {
+  if (!props.selector) return null
+  let normalized = props.selector.trimStart()
+  while (normalized.startsWith('/')) {
+    normalized = normalized.slice(1).trimStart()
+  }
+  return normalized.length > 0 ? normalized : null
+})
 
 async function handleCopy() {
-  if (!props.selector) return
+  if (!normalizedSelector.value) return
   try {
-    await navigator.clipboard.writeText(props.selector)
-  } catch {
+    await navigator.clipboard.writeText(normalizedSelector.value)
+  } catch (_err) {
     // Fallback: no-op in restricted contexts
   }
   copied.value = true
@@ -31,11 +39,11 @@ async function handleCopy() {
   <div class="h-10 border-b border-obsidian-700 flex items-center justify-between px-4 bg-obsidian-950/80">
     <!-- Left: breadcrumb path -->
     <div class="flex items-center gap-2 text-xs font-mono overflow-hidden">
-      <span class="text-gray-500 shrink-0">Workspace /</span>
-      <template v-if="selector">
-        <span class="text-lime-accent/60 mx-1">/</span>
-        <span class="text-lime-accent truncate" :title="selector">
-          {{ selector }}
+      <span class="text-gray-500 shrink-0">Workspace</span>
+      <template v-if="normalizedSelector">
+        <span class="text-lime-accent/60 shrink-0">/</span>
+        <span class="text-lime-accent truncate" :title="normalizedSelector">
+          {{ normalizedSelector }}
         </span>
       </template>
     </div>
@@ -43,7 +51,7 @@ async function handleCopy() {
     <!-- Right: copy button -->
     <div class="flex gap-3">
       <button
-        v-if="selector"
+        v-if="normalizedSelector"
         class="flex items-center gap-1.5 text-xs text-gray-400 hover:text-white transition-colors group"
         :title="copied ? 'Copied!' : 'Copy selector'"
         @click="handleCopy"
