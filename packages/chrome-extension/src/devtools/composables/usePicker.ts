@@ -55,9 +55,11 @@ async function sendToContentScript(
   message: { type: string; [key: string]: unknown },
   frameId?: number
 ): Promise<void> {
-  const options = frameId !== undefined ? { frameId } : undefined;
+  const sendMsg = frameId !== undefined
+    ? () => chrome.tabs.sendMessage(tabId, message, { frameId } as any)
+    : () => chrome.tabs.sendMessage(tabId, message);
   try {
-    await chrome.tabs.sendMessage(tabId, message, options as any);
+    await sendMsg();
   } catch {
     // Content script might not be injected yet
     const scriptTarget: chrome.scripting.InjectionTarget = frameId !== undefined
@@ -67,7 +69,7 @@ async function sendToContentScript(
       target: scriptTarget,
       files: ['src/content/index.js'],
     });
-    await chrome.tabs.sendMessage(tabId, message, options as any);
+    await sendMsg();
   }
 }
 
@@ -112,11 +114,12 @@ export function usePicker(): UsePickerReturn {
 
     try {
       log.debug('usePicker', `highlightSelector: selector=${selector}, frameId=${frameId ?? 'none (broadcast)'}`);
-      const options = frameId !== undefined ? { frameId } : undefined;
-      await chrome.tabs.sendMessage(tabId, {
-        type: PickerMessageType.HIGHLIGHT,
-        selector,
-      }, options as any);
+      const msg = { type: PickerMessageType.HIGHLIGHT, selector };
+      if (frameId !== undefined) {
+        await chrome.tabs.sendMessage(tabId, msg, { frameId } as any);
+      } else {
+        await chrome.tabs.sendMessage(tabId, msg);
+      }
     } catch {
       // Content script not loaded, ignore
     }
@@ -127,8 +130,11 @@ export function usePicker(): UsePickerReturn {
     if (!tabId) return;
 
     // When frameId is known, target that frame; otherwise broadcast to all frames
-    const options = frameId !== undefined ? { frameId } : undefined;
-    chrome.tabs.sendMessage(tabId, { type: PickerMessageType.CLEAR_HIGHLIGHT }, options as any).catch(() => {});
+    const msg = { type: PickerMessageType.CLEAR_HIGHLIGHT };
+    const send = frameId !== undefined
+      ? chrome.tabs.sendMessage(tabId, msg, { frameId } as any)
+      : chrome.tabs.sendMessage(tabId, msg);
+    send.catch(() => {});
   }
 
   async function captureElementScreenshot(rect: BoundingRect, selector?: string, frameId?: number): Promise<string | null> {

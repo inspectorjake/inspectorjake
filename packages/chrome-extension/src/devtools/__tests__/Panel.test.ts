@@ -220,7 +220,7 @@ describe('Panel picker cancellation', () => {
 
     await wrapper.get('.hover-start-element').trigger('click');
 
-    expect(mocks.highlightSelector).toHaveBeenCalledWith('main > button');
+    expect(mocks.highlightSelector).toHaveBeenCalledWith('main > button', undefined);
     expect(mocks.clearHighlight).not.toHaveBeenCalled();
   });
 

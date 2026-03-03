@@ -64,6 +64,14 @@ export function useSelections() {
   ): Promise<void> {
     if (!element?.rect) return;
 
+    // Validate rect dimensions to prevent NaN in selection data
+    const rectWidth = Number.isFinite(element.rect.width) ? element.rect.width : 0;
+    const rectHeight = Number.isFinite(element.rect.height) ? element.rect.height : 0;
+    if (rectWidth === 0 && rectHeight === 0) {
+      log.warn('useSelections', `Skipping element with zero-area rect: selector=${element.selector}`);
+      return;
+    }
+
     // Skip if this selector is already in the list
     if (selections.value.some((s) => s.type === 'element' && s.selector === element.selector)) {
       return;
@@ -90,8 +98,8 @@ export function useSelections() {
       type: 'element',
       timestamp: Date.now(),
       image: screenshot || '',
-      width: Math.round(element.rect.width),
-      height: Math.round(element.rect.height),
+      width: Math.round(rectWidth),
+      height: Math.round(rectHeight),
       selector: element.selector,
       tagName: element.tagName,
       className: element.className,
@@ -185,12 +193,11 @@ export function useSelections() {
     }
 
     try {
-      const options = selection.frameId !== undefined ? { frameId: selection.frameId } : undefined;
       log.debug('useSelections', `refreshExpandedStyles: selector=${selection.selector}, frameId=${selection.frameId ?? 'none (broadcast)'}`);
-      const response = await chrome.tabs.sendMessage(tabId, {
-        type: 'REFRESH_ELEMENT_STYLES',
-        selector: selection.selector,
-      }, options as any);
+      const msg = { type: 'REFRESH_ELEMENT_STYLES', selector: selection.selector };
+      const response = selection.frameId !== undefined
+        ? await chrome.tabs.sendMessage(tabId, msg, { frameId: selection.frameId } as any)
+        : await chrome.tabs.sendMessage(tabId, msg);
 
       if (response?.success) {
         selection.computedStyles = response.computedStyles;

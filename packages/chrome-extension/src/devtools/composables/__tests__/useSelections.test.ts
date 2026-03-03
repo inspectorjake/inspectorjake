@@ -184,13 +184,15 @@ describe('useSelections', () => {
       expect(expandedId.value).toMatch(/^elem-/);
     });
 
-    it('should skip if screenshot capture fails', async () => {
+    it('should add element with empty image and reason when screenshot capture fails', async () => {
       const { selections, addElementSelection } = useSelections();
       const failingCapture = vi.fn().mockResolvedValue(null);
 
       await addElementSelection(createMockElement(), failingCapture);
 
-      expect(selections.value).toHaveLength(0);
+      expect(selections.value).toHaveLength(1);
+      expect(selections.value[0].image).toBe('');
+      expect((selections.value[0] as any).screenshotUnavailableReason).toBe('Screenshot unavailable (iframe restrictions)');
     });
 
     it('should add element without screenshot if no capture callback', async () => {

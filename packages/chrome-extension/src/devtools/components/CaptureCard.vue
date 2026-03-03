@@ -57,6 +57,12 @@ const notePreview = computed(() => {
   if (!note) return null
   return note.length > 30 ? note.slice(0, 30) + '...' : note
 })
+
+/** Check if element is in an iframe */
+const isInIframe = computed(() => {
+  if (props.selection.type !== 'element') return false
+  return props.selection.frameId !== undefined
+})
 </script>
 
 <template>
@@ -142,7 +148,7 @@ const notePreview = computed(() => {
           class="text-[10px] text-gray-300 truncate font-medium"
           :title="truncatedSelector"
         >
-          {{ truncatedSelector }}
+          <span v-if="isInIframe" class="text-amber-400 mr-1">[iframe]</span>{{ truncatedSelector }}
         </span>
         <span class="text-[10px] text-gray-500 font-mono">
           {{ formattedTime }}

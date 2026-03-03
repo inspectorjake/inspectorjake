@@ -65,6 +65,7 @@ function onNoteInput(event: Event) {
       v-if="expandedSelection"
       :selector="isElement(expandedSelection) ? expandedSelection.selector : null"
       :tag-name="isElement(expandedSelection) ? expandedSelection.tagName : null"
+      :frame-id="isElement(expandedSelection) ? expandedSelection.frameId : undefined"
     />
 
     <!-- Main content grid -->

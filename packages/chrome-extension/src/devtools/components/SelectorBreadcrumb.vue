@@ -9,6 +9,7 @@ import { computed, ref } from 'vue'
 const props = defineProps<{
   selector: string | null
   tagName: string | null
+  frameId?: number
 }>()
 
 const copied = ref(false)
@@ -24,7 +25,10 @@ const normalizedSelector = computed(() => {
 async function handleCopy() {
   if (!normalizedSelector.value) return
   try {
-    await navigator.clipboard.writeText(normalizedSelector.value)
+    const textToCopy = props.frameId !== undefined
+      ? `[iframe] ${normalizedSelector.value}`
+      : normalizedSelector.value
+    await navigator.clipboard.writeText(textToCopy)
   } catch (_err) {
     // Fallback: no-op in restricted contexts
   }
@@ -40,6 +44,10 @@ async function handleCopy() {
     <!-- Left: breadcrumb path -->
     <div class="flex items-center gap-2 text-xs font-mono overflow-hidden">
       <span class="text-gray-500 shrink-0">Workspace</span>
+      <template v-if="frameId !== undefined">
+        <span class="text-lime-accent/60 shrink-0">/</span>
+        <span class="text-amber-400 shrink-0">iframe</span>
+      </template>
       <template v-if="normalizedSelector">
         <span class="text-lime-accent/60 shrink-0">/</span>
         <span class="text-lime-accent truncate" :title="normalizedSelector">
