@@ -47,5 +47,10 @@ watch(autoClearSelectionsAfterSeen, async (val) => {
 });
 
 export function useSettings() {
-  return { computedStylesMode, maxScreenshotDimension, autoClearSelectionsAfterSeen, setComputedStylesMode };
+  return {
+    computedStylesMode,
+    maxScreenshotDimension,
+    autoClearSelectionsAfterSeen,
+    setComputedStylesMode,
+  };
 }

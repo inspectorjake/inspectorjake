@@ -153,4 +153,5 @@ describe('SettingsPanel', () => {
 
     expect(autoClearSelectionsAfterSeen.value).toBe(false);
   });
+
 });

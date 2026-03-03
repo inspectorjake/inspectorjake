@@ -2,7 +2,7 @@
 // Provides realistic element selections, sessions, and screenshots.
 
 export const MOCK_SESSIONS = [
-  { name: 'kevin_agent_v2', port: 57490, status: 'ready' as const },
+  { name: 'annie', port: 57490, status: 'ready' as const },
   { name: 'test_session', port: 57491, status: 'ready' as const },
 ];
 
