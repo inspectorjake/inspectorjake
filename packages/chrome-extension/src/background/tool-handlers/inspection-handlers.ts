@@ -13,6 +13,7 @@ import type {
 } from '@inspector-jake/shared';
 import {
   getSelections,
+  getCachedSelectionImage,
   clearSelections,
   buildSelectionsResponse,
   type SelectionResponse,
@@ -52,6 +53,11 @@ export function handleViewImage(
   payload: ViewImageRequest,
 ): { image: string; width: number; height: number } | { error: string } {
   const { imageId } = payload;
+  const cached = getCachedSelectionImage(imageId);
+  if (cached) {
+    return cached;
+  }
+
   const selection = getSelections().find((s) => s.id === imageId);
 
   if (!selection) {

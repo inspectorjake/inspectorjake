@@ -20,12 +20,28 @@ const selectedElements = new Map<number, ElementInfo | null>();
 // ---------------------------------------------------------------------------
 
 let storedSelections: Selection[] = [];
+const selectionImageCache = new Map<string, {
+  image: string;
+  width: number;
+  height: number;
+}>();
+
+function cacheSelectionImages(selections: Selection[]): void {
+  for (const selection of selections) {
+    selectionImageCache.set(selection.id, {
+      image: selection.image,
+      width: selection.width,
+      height: selection.height,
+    });
+  }
+}
 
 /**
  * Update selections (called from panel).
  */
 export function updateSelections(selections: Selection[]): void {
   storedSelections = selections;
+  cacheSelectionImages(selections);
 }
 
 /**
@@ -42,6 +58,16 @@ export function clearSelections(): void {
   storedSelections = [];
 }
 
+/**
+ * Get a cached selection image by ID.
+ * Cache survives selection list clearing for session-lifetime lookup by imageId.
+ */
+export function getCachedSelectionImage(
+  id: string,
+): { image: string; width: number; height: number } | null {
+  return selectionImageCache.get(id) ?? null;
+}
+
 // ---------------------------------------------------------------------------
 // Legacy aliases for backward compatibility
 // ---------------------------------------------------------------------------
@@ -49,6 +75,7 @@ export function clearSelections(): void {
 export function updateAttachedSnapshots(snapshots: any[]): void {
   // Convert legacy snapshot format to selections if needed
   storedSelections = snapshots as Selection[];
+  cacheSelectionImages(storedSelections);
 }
 
 export function getAttachedSnapshots(): any[] {
