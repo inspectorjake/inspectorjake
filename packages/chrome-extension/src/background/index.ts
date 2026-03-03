@@ -116,9 +116,10 @@ async function handleMessage(
       // Also update the selected element in tool handlers
       const { element } = message;
       const tabId = sender.tab?.id;
-      const frameId = sender.frameId ?? 0;
-      log.debug('Background', `ELEMENT_PICKED: frameId=${frameId}, isIframe=${frameId !== 0}, tabId=${tabId}, selector=${element?.selector ?? 'none'}`);
-      if (element) {
+      const frameId = sender.frameId;
+      log.debug('Background', `ELEMENT_PICKED: frameId=${frameId ?? 'none'}, isIframe=${frameId !== undefined && frameId > 0}, tabId=${tabId}, selector=${element?.selector ?? 'none'}`);
+      if (element && frameId !== undefined && frameId > 0) {
+        // Only tag with frameId when element is inside a sub-frame (not top frame)
         element.frameId = frameId;
       }
       if (tabId) {
