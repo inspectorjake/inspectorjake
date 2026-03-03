@@ -20,7 +20,7 @@ import type {
   WaitForElementResponse,
 } from '@inspector-jake/shared';
 
-import { attachDebugger, cdpClick, cdpType } from '../cdp.js';
+import { attachDebugger, cdpClick, cdpType, cdpEvaluate } from '../cdp.js';
 
 import {
   resolveRefAndGetCenter,
@@ -98,6 +98,7 @@ export async function handleBrowserReload(
 /**
  * Handle run_javascript tool.
  * Executes JavaScript in the page context.
+ * Uses CDP Runtime.evaluate first (bypasses CSP), falls back to chrome.scripting.
  */
 export async function handleBrowserEvaluate(
   tabId: number | null,
@@ -107,11 +108,20 @@ export async function handleBrowserEvaluate(
     throw new Error('No tab connected');
   }
 
+  // Try CDP Runtime.evaluate first — bypasses Content Security Policy restrictions
+  try {
+    await attachDebugger(tabId);
+    const value = await cdpEvaluate(tabId, payload.code);
+    return { result: value };
+  } catch {
+    // CDP unavailable (e.g. DevTools open, debugger can't attach) — fall back to scripting
+  }
+
+  // Fallback: chrome.scripting.executeScript (subject to page CSP)
   const [result] = await chrome.scripting.executeScript({
     target: { tabId },
     func: (code: string) => {
       try {
-        // Use Function constructor for safer eval
         const fn = new Function(`return (${code})`);
         const value = fn();
         return { success: true, value };
