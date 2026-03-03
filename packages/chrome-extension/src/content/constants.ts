@@ -14,6 +14,7 @@ export const OVERLAY_IDS = {
   regionBox: 'inspector-jake-region-box',
   regionLabel: 'inspector-jake-region-label',
   cursor: 'inspector-jake-cursor',
+  instruction: 'inspector-jake-instruction',
 } as const;
 
 export const MAX_CONSOLE_LOGS = 1000;

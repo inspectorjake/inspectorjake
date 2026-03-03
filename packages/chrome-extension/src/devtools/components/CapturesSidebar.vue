@@ -110,7 +110,7 @@ const emit = defineEmits<{
             PICK ELEMENT
           </span>
           <span v-else class="text-[9px] font-mono text-gray-400">
-            Press Esc to cancel
+            Scroll ↑↓ parent/child · Drag to screenshot · Esc cancel
           </span>
         </div>
 

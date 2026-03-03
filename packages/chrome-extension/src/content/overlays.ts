@@ -10,6 +10,7 @@ import { OVERLAY_IDS } from './constants.js';
 
 let highlightOverlay: HTMLDivElement | null = null;
 let labelOverlay: HTMLDivElement | null = null;
+let instructionOverlay: HTMLDivElement | null = null;
 
 export function createHighlightOverlay() {
   if (highlightOverlay) return;
@@ -46,6 +47,32 @@ export function createHighlightOverlay() {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
   `;
   document.documentElement.appendChild(labelOverlay);
+
+  instructionOverlay = document.createElement('div');
+  instructionOverlay.id = OVERLAY_IDS.instruction;
+  instructionOverlay.style.cssText = `
+    position: fixed !important;
+    bottom: 16px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    background: #0F172A !important;
+    color: #94A3B8 !important;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    font-size: 12px !important;
+    padding: 8px 16px !important;
+    border-radius: 8px !important;
+    z-index: 2147483647 !important;
+    pointer-events: none !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4) !important;
+    white-space: nowrap !important;
+    letter-spacing: 0.01em !important;
+  `;
+  instructionOverlay.innerHTML =
+    '<span style="color: #22C55E !important;">Click</span> to select · ' +
+    '<span style="color: #22C55E !important;">Drag</span> to screenshot · ' +
+    '<span style="color: #22C55E !important;">Scroll</span> ↑ parent ↓ child · ' +
+    '<span style="color: #22C55E !important;">Esc</span> to cancel';
+  document.documentElement.appendChild(instructionOverlay);
 }
 
 export function updateHighlight(el: Element) {
@@ -100,6 +127,10 @@ export function removeHighlightOverlay() {
   if (labelOverlay) {
     labelOverlay.remove();
     labelOverlay = null;
+  }
+  if (instructionOverlay) {
+    instructionOverlay.remove();
+    instructionOverlay = null;
   }
 }
 

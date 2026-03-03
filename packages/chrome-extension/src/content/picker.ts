@@ -167,6 +167,36 @@ function onKeyDown(e: KeyboardEvent) {
     hideDragRegion();
     stopPicking();
     safeSendMessage({ type: 'PICKER_CANCELLED' });
+    return;
+  }
+}
+
+function onWheel(e: WheelEvent) {
+  if (!isPicking) return;
+  if (isDragging) return;
+
+  e.preventDefault();
+  e.stopPropagation();
+
+  if (e.deltaY < 0) {
+    // Scroll up → zoom out → parent element
+    if (hoveredElement?.parentElement &&
+        hoveredElement.parentElement !== document.documentElement) {
+      hoveredElement = hoveredElement.parentElement;
+      updateHighlight(hoveredElement);
+    }
+  } else if (e.deltaY > 0) {
+    // Scroll down → zoom in → re-resolve deepest element under cursor
+    const deepest = document.elementFromPoint(e.clientX, e.clientY);
+    const highlightEl = getHighlightOverlay();
+    const labelEl = getLabelOverlay();
+    const dragEl = getDragRegionOverlay();
+
+    if (deepest && deepest !== highlightEl && deepest !== labelEl && deepest !== dragEl &&
+        deepest !== document.documentElement && deepest !== document.body) {
+      hoveredElement = deepest;
+      updateHighlight(deepest);
+    }
   }
 }
 
@@ -209,6 +239,7 @@ export function startPicking() {
   document.addEventListener('mouseup', onMouseUp, true);
   document.addEventListener('click', onClick, true);
   document.addEventListener('keydown', onKeyDown, true);
+  document.addEventListener('wheel', onWheel, { capture: true, passive: false });
 }
 
 export function stopPicking() {
@@ -225,6 +256,7 @@ export function stopPicking() {
   document.removeEventListener('mousedown', onMouseDown, true);
   document.removeEventListener('mouseup', onMouseUp, true);
   document.removeEventListener('keydown', onKeyDown, true);
+  document.removeEventListener('wheel', onWheel, true);
 
   setTimeout(() => {
     document.removeEventListener('click', onClick, true);
