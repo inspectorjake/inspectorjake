@@ -1,7 +1,7 @@
 /**
  * Inspection tool handlers for InspectorJake MCP tools.
  *
- * Handles get_jakes_notes (selections), view_user_selection_image,
+ * Handles see_jakes_notes (selections), view_image_in_jakes_notes,
  * and get_page_info (combined page info with ARIA snapshot).
  */
 
@@ -20,7 +20,7 @@ import {
 import { generateInteractiveSnapshot } from './page-scripts/generate-snapshot.js';
 
 /**
- * Handle get_jakes_notes tool.
+ * Handle see_jakes_notes tool.
  * Returns all selections with differentiated response format.
  */
 export async function handleGetSelections(): Promise<{ selections: SelectionResponse[] }> {

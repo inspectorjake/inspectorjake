@@ -83,8 +83,8 @@ Or add it manually to your Claude Desktop config (`~/.config/claude/claude_deskt
 |------|-------------|
 | `get_page_info` | Page URL, title, viewport, and full ARIA accessibility tree with element refs |
 | `get_session_info` | MCP session name, port, and browser connection status |
-| `get_jakes_notes` | All user-pinned selections from the DevTools panel |
-| `view_user_selection_image` | View a stored selection image by its ID |
+| `see_jakes_notes` | All user-pinned selections from the DevTools panel |
+| `view_image_in_jakes_notes` | View a stored selection image by its ID |
 | `capture_screenshot` | Screenshot by element ref, CSS selector, or full page |
 | `get_console_logs` | Console output and uncaught errors (log, warn, error, info, debug, trace, assert, exceptions) |
 | `run_javascript` | Execute JavaScript in the page context |

@@ -22,8 +22,8 @@ import {
 type ToolHandler = (tabId: number | null, payload: any) => Promise<any>;
 
 const TOOL_REGISTRY: Record<string, ToolHandler> = {
-  get_jakes_notes: () => handleGetSelections(),
-  view_user_selection_image: (_tabId, payload) => Promise.resolve(handleViewImage(payload)),
+  see_jakes_notes: () => handleGetSelections(),
+  view_image_in_jakes_notes: (_tabId, payload) => Promise.resolve(handleViewImage(payload)),
   get_page_info: (tabId, payload) => handleCombinedPageInfo(tabId, payload),
   capture_screenshot: (tabId, payload) => handleBrowserScreenshot(tabId, payload),
   run_javascript: (tabId, payload) => handleBrowserEvaluate(tabId, payload),

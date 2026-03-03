@@ -2,18 +2,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ToolRequest } from '@inspector-jake/shared';
 
 const sendMessageMock = vi.fn().mockResolvedValue(undefined);
-const getStorageMock = vi.fn();
+const getStorageMock = vi.fn().mockResolvedValue({});
 let handlers: typeof import('../tool-handlers.js');
 
 function makeGetJakesNotesRequest(id: string): ToolRequest {
   return {
     id,
-    type: 'get_jakes_notes',
+    type: 'see_jakes_notes',
     payload: {},
   };
 }
 
-describe('tool-handlers get_jakes_notes auto-clear behavior', () => {
+describe('tool-handlers see_jakes_notes auto-clear behavior', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     vi.resetModules();
@@ -43,7 +43,7 @@ describe('tool-handlers get_jakes_notes auto-clear behavior', () => {
     handlers.clearSelections();
   });
 
-  it('auto-clears selections by default after get_jakes_notes', async () => {
+  it('auto-clears selections by default after see_jakes_notes', async () => {
     getStorageMock.mockResolvedValue({});
     handlers.updateSelections([
       {

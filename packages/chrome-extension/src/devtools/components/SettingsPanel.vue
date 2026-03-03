@@ -252,7 +252,7 @@ function onKeydown(e: KeyboardEvent): void {
                 Auto-clear selections after agent has seen them
               </div>
               <p class="text-[9px] text-gray-600 mt-1 leading-relaxed">
-                Clears current captures right after <code class="font-mono text-gray-500">get_jakes_notes</code> is called.
+                Clears current captures right after <code class="font-mono text-gray-500">see_jakes_notes</code> is called.
               </p>
             </div>
           </label>

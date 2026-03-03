@@ -45,6 +45,7 @@ export interface SelectionData {
   computedStyles?: Record<string, string>;
   hint?: string;
   note?: string;
+  frameId?: number;
 }
 
 /**
@@ -128,7 +129,8 @@ export function renderSelections(selections: SelectionData[] | null | undefined)
       type: 'text',
       text: `Element selections (${elements.length}):\n${elements
         .map((e) => {
-          let text = `  - [${e.id}] ${e.tagName} "${e.selector}" (${formatDimensions(e)})\n    ${e.hint}`;
+          const iframePrefix = e.frameId !== undefined ? `[IFRAME frameId=${e.frameId}] ` : '';
+          let text = `  - [${e.id}] ${iframePrefix}${e.tagName} "${e.selector}" (${formatDimensions(e)})\n    ${e.hint}`;
           if (e.note) {
             text += `\n    User note: "${e.note}"`;
           }

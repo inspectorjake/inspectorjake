@@ -78,6 +78,7 @@ export interface SelectionResponse {
   computedStyles?: Record<string, string>;
   hint?: string;
   note?: string;
+  frameId?: number;
 }
 
 /**
@@ -114,7 +115,8 @@ export function buildSelectionsResponse(
       tagName: sel.tagName,
       className: sel.className,
       computedStyles: sel.computedStyles,
-      hint: `Use view_user_selection_image tool with imageId="${sel.id}" to see this element's screenshot`,
+      hint: `Use view_image_in_jakes_notes tool with imageId="${sel.id}" to see this element's screenshot`,
+      ...(sel.frameId !== undefined ? { frameId: sel.frameId } : {}),
     };
   });
 }
