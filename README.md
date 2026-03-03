@@ -68,6 +68,15 @@ Or add it manually to your Claude Desktop config (`~/.config/claude/claude_deskt
 3. Click "Load unpacked"
 4. Select the `packages/chrome-extension/dist` folder
 
+For Chrome Web Store upload, create a zip from inside `dist`:
+
+```bash
+cd packages/chrome-extension/dist
+zip -r ../../../inspector-jake-chrome-store.zip .
+```
+
+Important: the zip must contain `manifest.json` at the root (not inside a top-level `dist/` folder).
+
 ### 4. Connect
 
 1. Navigate to any webpage

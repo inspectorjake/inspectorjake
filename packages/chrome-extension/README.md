@@ -6,7 +6,18 @@ Chrome DevTools extension for Inspector Jake - let AI agents see what you see.
 
 ### Chrome Web Store
 
-Coming soon.
+1. Build the extension from the repo root:
+   ```bash
+   npm run build
+   ```
+2. Create a zip from inside `dist` so `manifest.json` is at the zip root:
+   ```bash
+   cd packages/chrome-extension/dist
+   zip -r ../../../inspector-jake-chrome-store.zip .
+   ```
+3. Upload `inspector-jake-chrome-store.zip` in the Chrome Web Store Developer Dashboard.
+
+Important: do not zip the `packages/chrome-extension/dist` folder itself as a parent folder. The zip must open directly to `manifest.json`, `icons/`, `assets/`, etc.
 
 ### Manual Installation (Development)
 
