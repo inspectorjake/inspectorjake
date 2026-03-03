@@ -21,6 +21,7 @@ const emit = defineEmits<{
   'toggle-picker': []
   'toggle-logs': []
   'toggle-settings': []
+  'disconnect': []
 }>()
 </script>
 
@@ -76,6 +77,7 @@ const emit = defineEmits<{
         :is-connected="isConnected"
         :session-name="sessionName"
         :connecting="connecting"
+        @disconnect="emit('disconnect')"
       />
 
       <!-- Logs toggle button -->

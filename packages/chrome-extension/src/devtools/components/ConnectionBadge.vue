@@ -9,6 +9,10 @@ defineProps<{
   sessionName: string | null
   connecting: boolean
 }>()
+
+const emit = defineEmits<{
+  disconnect: []
+}>()
 </script>
 
 <template>
@@ -22,6 +26,24 @@ defineProps<{
       <span class="text-xs font-mono text-lime-accent tracking-tight">
         Connected to {{ sessionName }}
       </span>
+      <button
+        class="ml-1 w-4 h-4 flex items-center justify-center rounded hover:bg-red-500/20 transition-colors group"
+        title="Disconnect"
+        @click.stop="emit('disconnect')"
+      >
+        <svg
+          width="10"
+          height="10"
+          viewBox="0 0 10 10"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          class="text-red-400 group-hover:text-red-300"
+        >
+          <path d="M2 2l6 6M8 2l-6 6" />
+        </svg>
+      </button>
     </template>
 
     <!-- Connecting state -->

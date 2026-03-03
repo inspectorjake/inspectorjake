@@ -253,6 +253,7 @@ onUnmounted(() => {
       @toggle-picker="handlePickerClick"
       @toggle-logs="toggleLogs"
       @toggle-settings="toggleSettings"
+      @disconnect="disconnect"
     />
 
     <!-- Error banner -->
