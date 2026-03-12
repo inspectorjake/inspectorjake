@@ -101,6 +101,18 @@ For other MCP clients (generic stdio):
 }
 ```
 
+### Updating
+
+If you configured your client with `npx -y inspector-jake-mcp` (no pinned version), you'll automatically get the latest version next time the server starts. No action needed.
+
+If you pinned a version (e.g. `inspector-jake-mcp@1.0.8`), update the version number in your config or re-run the `mcp add` command with the new version.
+
+If you installed globally:
+
+```bash
+npm update -g inspector-jake-mcp
+```
+
 ### 3. Load the Chrome Extension
 
 1. Open Chrome and go to `chrome://extensions/`
