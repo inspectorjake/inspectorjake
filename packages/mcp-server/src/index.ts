@@ -32,8 +32,8 @@ async function main() {
       log.info('Main', `Session: ${sessionName}, Port: ${port}`);
       log.info('Main', 'Waiting for browser connection...');
 
-      // Start MCP server with WebSocket server instance and session info
-      await createMcpServer(wsServer, { sessionName, port });
+      // Start MCP server with mutable session state
+      await createMcpServer({ wsServer, sessionInfo: { sessionName, port } });
 
       break;
     } catch (err) {

@@ -4,8 +4,10 @@
  */
 
 import type { ToolType } from '@inspector-jake/shared';
+import { SESSION_NAMES, nameToPort, type SessionName } from '@inspector-jake/shared';
 import type { WsServerInstance } from './ws-server.js';
-import type { SessionInfo } from './server.js';
+import { createWsServer } from './ws-server.js';
+import type { SessionState } from './server.js';
 import type { ToolResult, SelectionData } from './response-builder.js';
 import {
   errorResponse,
@@ -13,6 +15,7 @@ import {
   imageResponse,
   renderSelections,
 } from './response-builder.js';
+import { log } from './logger.js';
 
 type Args = Record<string, unknown> | undefined;
 
@@ -20,7 +23,7 @@ interface ToolDef {
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;
-  handleLocal?: (args: Args, wsServer: WsServerInstance, sessionInfo: SessionInfo) => ToolResult;
+  handleLocal?: (args: Args, state: SessionState) => ToolResult | Promise<ToolResult>;
   handleResult?: (response: { success: boolean; error?: string; result?: unknown }, args: Args) => ToolResult;
 }
 
@@ -155,23 +158,86 @@ export const toolDefs: ToolDef[] = [
     },
   },
 
-  // --- Local handler ---
+  // --- Local handlers ---
   {
     name: 'get_session_info',
     description:
-      'Get information about the current MCP session including session name, port, and browser connection status.',
+      'Get the current MCP session name, port, and browser connection status. Call this tool at the start of a conversation if you have not already told the user the session name — always output the session name so the user knows which session to connect to in the Chrome extension.',
     inputSchema: {
       type: 'object' as const,
       properties: {},
       required: [],
     },
-    handleLocal(_args, wsServer, sessionInfo) {
-      const discoveryInfo = wsServer.getDiscoveryInfo();
+    handleLocal(_args, state) {
+      const discoveryInfo = state.wsServer.getDiscoveryInfo();
       return jsonResponse({
-        sessionName: sessionInfo.sessionName,
-        port: sessionInfo.port,
+        sessionName: state.sessionInfo.sessionName,
+        port: state.sessionInfo.port,
         browserConnected: discoveryInfo.status === 'connected',
         connectedTab: discoveryInfo.connectedTab || null,
+      });
+    },
+  },
+  {
+    name: 'set_session_name',
+    description:
+      'Switch this MCP session to a different name and port. The Chrome extension will need to re-scan and reconnect after the switch. Any active browser connection will be dropped.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        name: {
+          type: 'string',
+          enum: [...SESSION_NAMES],
+          description: 'The session name to switch to (jake, annie, kevin, or elsa)',
+        },
+      },
+      required: ['name'],
+    },
+    async handleLocal(args, state) {
+      const newName = (args as Record<string, unknown>)?.name as string;
+
+      if (!SESSION_NAMES.includes(newName as SessionName)) {
+        return errorResponse(
+          `Invalid session name "${newName}". Must be one of: ${SESSION_NAMES.join(', ')}`
+        );
+      }
+
+      if (newName === state.sessionInfo.sessionName) {
+        return jsonResponse({
+          message: `Already using session name "${newName}"`,
+          sessionName: newName,
+          port: state.sessionInfo.port,
+        });
+      }
+
+      const newPort = nameToPort(newName);
+
+      // Create new server BEFORE closing old — if port is taken, return error without disruption
+      let newWsServer: WsServerInstance;
+      try {
+        newWsServer = await createWsServer(newPort);
+        newWsServer.setSessionName(newName);
+      } catch {
+        return errorResponse(
+          `Cannot switch to "${newName}": port ${newPort} is already in use by another session.`
+        );
+      }
+
+      const oldName = state.sessionInfo.sessionName;
+      const oldPort = state.sessionInfo.port;
+      state.wsServer.close();
+
+      state.wsServer = newWsServer;
+      state.sessionInfo = { sessionName: newName, port: newPort };
+
+      log.info('Tool', `Session renamed: ${oldName}:${oldPort} -> ${newName}:${newPort}`);
+
+      return jsonResponse({
+        message: `Switched session from "${oldName}" to "${newName}"`,
+        sessionName: newName,
+        port: newPort,
+        previousName: oldName,
+        previousPort: oldPort,
       });
     },
   },
@@ -351,8 +417,7 @@ const toolMap = new Map(toolDefs.map((t) => [t.name, t]));
 export async function dispatchTool(
   name: string,
   args: Args,
-  wsServer: WsServerInstance,
-  sessionInfo: SessionInfo
+  state: SessionState
 ): Promise<ToolResult> {
   const tool = toolMap.get(name);
   if (!tool) {
@@ -361,11 +426,11 @@ export async function dispatchTool(
 
   // Local handlers don't need WS
   if (tool.handleLocal) {
-    return tool.handleLocal(args, wsServer, sessionInfo);
+    return await tool.handleLocal(args, state);
   }
 
   // Send request to extension via WebSocket
-  const response = await wsServer.sendToolRequest(name as ToolType, args || {});
+  const response = await state.wsServer.sendToolRequest(name as ToolType, args || {});
 
   if (!response.success) {
     return errorResponse(response.error || 'Unknown error');

@@ -104,6 +104,7 @@ export type ToolType =
   | 'view_image_in_jakes_notes'
   | 'get_page_info'
   | 'get_session_info'
+  | 'set_session_name'
   | 'capture_screenshot'
   | 'run_javascript'
   | 'get_console_logs'

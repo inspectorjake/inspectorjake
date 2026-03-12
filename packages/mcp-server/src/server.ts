@@ -18,10 +18,12 @@ export interface SessionInfo {
   port: number;
 }
 
-export async function createMcpServer(
-  wsServer: WsServerInstance,
-  sessionInfo: SessionInfo
-): Promise<void> {
+export interface SessionState {
+  wsServer: WsServerInstance;
+  sessionInfo: SessionInfo;
+}
+
+export async function createMcpServer(state: SessionState): Promise<void> {
   const server = new Server(
     {
       name: 'vibejake',
@@ -33,14 +35,14 @@ export async function createMcpServer(
       },
       instructions: `Inspector Jake MCP Server
 
-Session Name: ${sessionInfo.sessionName}
-Port: ${sessionInfo.port}
+Session Name: ${state.sessionInfo.sessionName}
+Port: ${state.sessionInfo.port}
 
 To use this server:
 1. Open Chrome DevTools on any webpage
 2. Go to the "Inspector Jake" tab
 3. Click "Refresh" to scan for sessions
-4. Connect to session "${sessionInfo.sessionName}"
+4. Connect to session "${state.sessionInfo.sessionName}"
 
 Once connected, use the inspector tools to interact with the page.`,
     }
@@ -57,10 +59,10 @@ Once connected, use the inspector tools to interact with the page.`,
     };
   });
 
-  // Handle tool calls
+  // Handle tool calls — reads state at call time so set_session_name swaps are visible
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params;
-    return dispatchTool(name, args, wsServer, sessionInfo);
+    return dispatchTool(name, args, state);
   });
 
   // Connect via stdio transport

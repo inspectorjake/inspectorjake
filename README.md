@@ -40,23 +40,63 @@ Inspector Jake is an MCP (Model Context Protocol) server that connects AI assist
 npx inspector-jake-mcp
 ```
 
-### 2. Configure Claude Desktop
+### 2. Configure Your MCP Client
 
-Easy install with Claude CLI:
+For Codex CLI, use Codex's MCP manager with the npm package directly:
+
+```bash
+# 1) Add Inspector Jake MCP server to Codex
+codex mcp add inspector-jake -- npx -y inspector-jake-mcp@1.0.8
+
+# 2) Verify it was added
+codex mcp list
+codex mcp get inspector-jake
+```
+
+Important: do not configure Codex with `command: inspector-jake-mcp` directly unless that binary is globally installed. Use `npx` as shown above.
+
+If you see `No such file or directory (os error 2)`, re-add with the full `npx` path:
+
+```bash
+which npx
+codex mcp remove inspector-jake
+# Replace /opt/homebrew/bin/npx with the path printed by `which npx`
+codex mcp add inspector-jake -- /opt/homebrew/bin/npx -y inspector-jake-mcp@1.0.8
+```
+
+For Claude Code (global, available in all projects):
+
+```bash
+claude mcp add --scope user --transport stdio inspector-jake -- npx -y inspector-jake-mcp
+```
+
+For Claude Code (project-scoped):
 
 ```bash
 claude mcp add --transport stdio inspector-jake -- npx -y inspector-jake-mcp
 ```
 
-Or add it manually to your Claude Desktop config (`~/.config/claude/claude_desktop_config.json` on macOS/Linux):
+For Claude Desktop, add to your config (`~/.config/claude/claude_desktop_config.json` on macOS/Linux):
 
 ```json
 {
   "mcpServers": {
     "inspector-jake": {
       "command": "npx",
-      "args": ["inspector-jake-mcp"]
+      "args": ["-y", "inspector-jake-mcp"]
     }
+  }
+}
+```
+
+For other MCP clients (generic stdio):
+
+```json
+{
+  "inspector-jake": {
+    "command": "npx",
+    "args": ["-y", "inspector-jake-mcp"],
+    "transport": "stdio"
   }
 }
 ```

@@ -1,6 +1,6 @@
 {
   "name": "inspector-jake-mcp",
-  "version": "1.0.7",
+  "version": "1.0.9",
   "description": "MCP server for Inspector Jake - inspect web pages via Chrome DevTools",
   "keywords": [
     "mcp",
@@ -28,7 +28,7 @@
   "type": "module",
   "main": "./dist/index.js",
   "bin": {
-    "inspector-jake-mcp": "./dist/index.js"
+    "inspector-jake-mcp": "dist/index.js"
   },
   "scripts": {
     "build": "tsup",
