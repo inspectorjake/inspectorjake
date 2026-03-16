@@ -11,6 +11,43 @@ Let AI agents inspect and interact with web pages through Chrome DevTools.
 
 Inspector Jake is an MCP (Model Context Protocol) server that connects AI assistants like Claude to Chrome DevTools. Agents can inspect page structure via ARIA trees, capture screenshots, read console logs, and interact with elements through clicks, typing, and navigation.
 
+## DevTools Panel
+
+<img src="docs/images/panel-overview.png" alt="Inspector Jake DevTools Panel" width="800">
+
+The Inspector Jake DevTools panel is your workspace for capturing elements, annotating them for the AI agent, and reviewing computed styles and accessibility trees.
+
+### Jake's Notes
+
+<img src="docs/images/jakes-notes.png" alt="Jake's Notes" width="500">
+
+Pin elements or drag to capture regions, then add notes for the AI agent. Notes appear as context when the agent calls `see_jakes_notes`. Use them for requests like *"make this button bigger"*, *"fix the alignment here"*, or *"this color is wrong"*.
+
+### Why ARIA Trees Instead of Raw HTML
+
+<img src="docs/images/accessibility-tree.png" alt="Accessibility Tree" width="500">
+
+Inspector Jake uses ARIA accessibility trees instead of raw HTML for page inspection. Raw HTML is too verbose and noisy for LLM context windows. ARIA trees are a compact, semantic representation — roles, names, and states capture what the user sees and can interact with. Each element gets a ref (e.g., `s1e42`) that maps directly to interaction tools like `click_element` and `type_into_element`.
+
+### Computed Styles & Send Styles
+
+<img src="docs/images/css-panel.png" alt="CSS Panel with Send Styles" width="500">
+
+The CSS panel shows computed styles for selected elements. The **Send Styles** setting controls how much CSS context the agent receives when it reads selections:
+
+- **None** — Skip computed styles entirely (saves tokens)
+- **Lean** — Layout + visual essentials (display, flex, padding, colors, fonts)
+- **Non-Default** — Only properties changed from browser defaults
+- **All** — Every computed property (most verbose)
+
+### Configuration
+
+<img src="docs/images/config-panel.png" alt="Configuration Panel" width="260">
+
+- **Computed Styles** — Choose how much CSS context to send (None / Lean / Non-Default / All)
+- **Screenshot Capture — Max Dimension** — Screenshots exceeding this limit (200–2000px, default 800) are downscaled proportionally
+- **Auto-clear Selections** — Clears captures automatically after the agent reads them via `see_jakes_notes`
+
 ## Architecture
 
 ```
