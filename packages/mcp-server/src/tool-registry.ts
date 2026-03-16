@@ -4,7 +4,7 @@
  */
 
 import type { ToolType } from '@inspector-jake/shared';
-import { SESSION_NAMES, nameToPort, type SessionName } from '@inspector-jake/shared';
+import { nameToPort } from '@inspector-jake/shared';
 import type { WsServerInstance } from './ws-server.js';
 import { createWsServer } from './ws-server.js';
 import type { SessionState } from './server.js';
@@ -187,20 +187,13 @@ export const toolDefs: ToolDef[] = [
       properties: {
         name: {
           type: 'string',
-          enum: [...SESSION_NAMES],
-          description: 'The session name to switch to (jake, annie, kevin, or elsa)',
+          description: 'The session name to switch to. Predefined names (jake, annie, kevin, elsa) are auto-discovered by the Chrome extension. Custom names work too — the tool response includes the port number for manual connection.',
         },
       },
       required: ['name'],
     },
     async handleLocal(args, state) {
       const newName = (args as Record<string, unknown>)?.name as string;
-
-      if (!SESSION_NAMES.includes(newName as SessionName)) {
-        return errorResponse(
-          `Invalid session name "${newName}". Must be one of: ${SESSION_NAMES.join(', ')}`
-        );
-      }
 
       if (newName === state.sessionInfo.sessionName) {
         return jsonResponse({
@@ -258,6 +251,37 @@ export const toolDefs: ToolDef[] = [
         clear: {
           type: 'boolean',
           description: 'If true, clears logs after retrieving',
+        },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'get_network_requests',
+    description:
+      'Get captured network requests (fetch and XMLHttpRequest) from the page. Captures URL, method, status, headers, timing, and errors. Does not capture request/response bodies.',
+    inputSchema: {
+      type: 'object' as const,
+      properties: {
+        urlPattern: {
+          type: 'string',
+          description: 'Filter by URL substring match',
+        },
+        method: {
+          type: 'string',
+          description: 'Filter by HTTP method (GET, POST, etc.)',
+        },
+        statusMin: {
+          type: 'number',
+          description: 'Minimum status code (inclusive). Use 400 to find errors.',
+        },
+        statusMax: {
+          type: 'number',
+          description: 'Maximum status code (inclusive)',
+        },
+        clear: {
+          type: 'boolean',
+          description: 'If true, clears captured requests after retrieving',
         },
       },
       required: [],

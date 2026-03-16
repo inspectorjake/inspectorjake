@@ -1,6 +1,6 @@
 {
   "name": "inspector-jake-mcp",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "description": "MCP server for Inspector Jake - inspect web pages via Chrome DevTools",
   "keywords": [
     "mcp",

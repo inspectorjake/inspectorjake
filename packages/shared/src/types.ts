@@ -108,6 +108,7 @@ export type ToolType =
   | 'capture_screenshot'
   | 'run_javascript'
   | 'get_console_logs'
+  | 'get_network_requests'
   | 'navigate_to_url'
   | 'go_back'
   | 'go_forward'
@@ -162,13 +163,13 @@ export interface WaitForElementResponse {
 export interface ToolRequest {
   id: string;
   type: ToolType;
-  payload: ScreenshotRequest | GetPageInfoRequest | GetSelectionsRequest | ViewImageRequest | BrowserScreenshotRequest | BrowserClickRequest | BrowserTypeRequest | BrowserSelectOptionRequest | BrowserNavigateRequest | BrowserEvaluateRequest | BrowserGetConsoleLogsRequest | WaitForElementRequest;
+  payload: ScreenshotRequest | GetPageInfoRequest | GetSelectionsRequest | ViewImageRequest | BrowserScreenshotRequest | BrowserClickRequest | BrowserTypeRequest | BrowserSelectOptionRequest | BrowserNavigateRequest | BrowserEvaluateRequest | BrowserGetConsoleLogsRequest | BrowserGetNetworkRequestsRequest | WaitForElementRequest;
 }
 
 export interface ToolResponse {
   id: string;
   success: boolean;
-  result?: ScreenshotResponse | GetPageInfoResponse | GetSelectionsResponse | ViewImageResponse | InteractiveContextResponse | BrowserActionResponse | BrowserEvaluateResponse | BrowserConsoleLogsResponse | WaitForElementResponse;
+  result?: ScreenshotResponse | GetPageInfoResponse | GetSelectionsResponse | ViewImageResponse | InteractiveContextResponse | BrowserActionResponse | BrowserEvaluateResponse | BrowserConsoleLogsResponse | BrowserNetworkRequestsResponse | WaitForElementResponse;
   error?: string;
 }
 
@@ -311,6 +312,14 @@ export interface BrowserGetConsoleLogsRequest {
   clear?: boolean;
 }
 
+export interface BrowserGetNetworkRequestsRequest {
+  urlPattern?: string;
+  method?: string;
+  statusMin?: number;
+  statusMax?: number;
+  clear?: boolean;
+}
+
 export interface BrowserActionResponse {
   success: boolean;
   message?: string;
@@ -327,5 +336,20 @@ export interface BrowserConsoleLogsResponse {
     type: string;
     message: string;
     timestamp: number;
+  }>;
+}
+
+export interface BrowserNetworkRequestsResponse {
+  requests: Array<{
+    url: string;
+    method: string;
+    status: number;
+    statusText: string;
+    type: 'fetch' | 'xhr';
+    requestHeaders?: Record<string, string>;
+    responseHeaders?: Record<string, string>;
+    duration: number;
+    timestamp: number;
+    error?: string;
   }>;
 }

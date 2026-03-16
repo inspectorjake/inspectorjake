@@ -16,6 +16,7 @@ import {
   handleBrowserReload,
   handleBrowserEvaluate,
   handleBrowserGetConsoleLogs,
+  handleBrowserGetNetworkRequests,
   handleWaitForElement,
 } from './automation-handlers.js';
 
@@ -28,6 +29,7 @@ const TOOL_REGISTRY: Record<string, ToolHandler> = {
   capture_screenshot: (tabId, payload) => handleBrowserScreenshot(tabId, payload),
   run_javascript: (tabId, payload) => handleBrowserEvaluate(tabId, payload),
   get_console_logs: (tabId, payload) => handleBrowserGetConsoleLogs(tabId, payload),
+  get_network_requests: (tabId, payload) => handleBrowserGetNetworkRequests(tabId, payload),
   navigate_to_url: (tabId, payload) => handleBrowserNavigate(tabId, payload),
   go_back: (tabId) => handleBrowserGoBack(tabId),
   go_forward: (tabId) => handleBrowserGoForward(tabId),

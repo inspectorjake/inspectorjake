@@ -10,6 +10,7 @@
 
 import { CONTENT_SCRIPT_VERSION } from './constants.js';
 import './console-capture.js';
+import './network-capture.js';
 import { cleanupStaleOverlays } from './overlays.js';
 import { initMessageHandler } from './message-handler.js';
 import './window-api.js';

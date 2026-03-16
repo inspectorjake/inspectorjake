@@ -18,3 +18,4 @@ export const OVERLAY_IDS = {
 } as const;
 
 export const MAX_CONSOLE_LOGS = 1000;
+export const MAX_NETWORK_REQUESTS = 500;

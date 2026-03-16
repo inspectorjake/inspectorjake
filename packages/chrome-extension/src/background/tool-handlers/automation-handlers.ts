@@ -13,9 +13,11 @@ import type {
   BrowserNavigateRequest,
   BrowserEvaluateRequest,
   BrowserGetConsoleLogsRequest,
+  BrowserGetNetworkRequestsRequest,
   BrowserActionResponse,
   BrowserEvaluateResponse,
   BrowserConsoleLogsResponse,
+  BrowserNetworkRequestsResponse,
   WaitForElementRequest,
   WaitForElementResponse,
 } from '@inspector-jake/shared';
@@ -176,6 +178,63 @@ export async function handleBrowserGetConsoleLogs(
   });
 
   return { logs: result?.result || [] };
+}
+
+/**
+ * Handle get_network_requests tool.
+ * Returns captured network requests (fetch and XHR).
+ */
+export async function handleBrowserGetNetworkRequests(
+  tabId: number | null,
+  payload: BrowserGetNetworkRequestsRequest
+): Promise<BrowserNetworkRequestsResponse> {
+  if (!tabId) {
+    throw new Error('No tab connected');
+  }
+
+  const [result] = await chrome.scripting.executeScript({
+    target: { tabId },
+    func: (
+      urlPattern: string | null,
+      method: string | null,
+      statusMin: number | null,
+      statusMax: number | null,
+      clear: boolean
+    ) => {
+      const requests = (window as any).__networkRequests || [];
+      let filtered = requests;
+
+      if (urlPattern) {
+        filtered = filtered.filter((r: any) => r.url.includes(urlPattern));
+      }
+      if (method) {
+        filtered = filtered.filter(
+          (r: any) => r.method.toUpperCase() === method.toUpperCase()
+        );
+      }
+      if (statusMin != null) {
+        filtered = filtered.filter((r: any) => r.status >= statusMin);
+      }
+      if (statusMax != null) {
+        filtered = filtered.filter((r: any) => r.status <= statusMax);
+      }
+
+      if (clear) {
+        (window as any).__networkRequests = [];
+      }
+
+      return filtered;
+    },
+    args: [
+      payload.urlPattern ?? null,
+      payload.method ?? null,
+      payload.statusMin ?? null,
+      payload.statusMax ?? null,
+      payload.clear ?? false,
+    ],
+  });
+
+  return { requests: result?.result || [] };
 }
 
 // ---------------------------------------------------------------------------

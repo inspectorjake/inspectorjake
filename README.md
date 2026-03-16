@@ -136,7 +136,7 @@ Important: the zip must contain `manifest.json` at the root (not inside a top-le
 3. Click the "Jake" tab
 4. Click "Connect" to your MCP session
 
-## MCP Tools (15)
+## MCP Tools (17)
 
 ### Inspection
 
@@ -144,10 +144,12 @@ Important: the zip must contain `manifest.json` at the root (not inside a top-le
 |------|-------------|
 | `get_page_info` | Page URL, title, viewport, and full ARIA accessibility tree with element refs |
 | `get_session_info` | MCP session name, port, and browser connection status |
+| `set_session_name` | Switch session to a different name and port at runtime |
 | `see_jakes_notes` | All user-pinned selections from the DevTools panel |
 | `view_image_in_jakes_notes` | View a stored selection image by its ID |
 | `capture_screenshot` | Screenshot by element ref, CSS selector, or full page |
 | `get_console_logs` | Console output and uncaught errors (log, warn, error, info, debug, trace, assert, exceptions) |
+| `get_network_requests` | Captured fetch/XHR network requests with URL, method, status, headers, and timing |
 | `run_javascript` | Execute JavaScript in the page context |
 
 ### Interaction
