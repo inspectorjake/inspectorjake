@@ -107,6 +107,8 @@ function onMouseDown(e: MouseEvent) {
   if (e.button !== 0) return;
 
   e.preventDefault();
+  e.stopPropagation();
+  e.stopImmediatePropagation();
   dragStartPos = { x: e.clientX, y: e.clientY };
   isDragging = false;
 
@@ -211,6 +213,33 @@ function onClick(e: MouseEvent) {
   suppressNextLeftClick = false;
 }
 
+function onPointerDown(e: PointerEvent) {
+  if (!isPicking) return;
+  if (e.button !== 0) return;
+
+  // Stop propagation to prevent page elements from seeing the pointer event.
+  // Do NOT call preventDefault — that suppresses compat mousedown/mouseup/click
+  // events that our own handlers rely on.
+  e.stopPropagation();
+  e.stopImmediatePropagation();
+}
+
+function onPointerUp(e: PointerEvent) {
+  if (e.button !== 0) return;
+  if (!isPicking && !suppressNextLeftClick) return;
+
+  e.stopPropagation();
+  e.stopImmediatePropagation();
+}
+
+function onContextMenu(e: MouseEvent) {
+  if (!isPicking) return;
+
+  e.preventDefault();
+  e.stopPropagation();
+  e.stopImmediatePropagation();
+}
+
 // ============================================================================
 // Public API
 // ============================================================================
@@ -238,6 +267,9 @@ export function startPicking() {
   document.addEventListener('mousedown', onMouseDown, true);
   document.addEventListener('mouseup', onMouseUp, true);
   document.addEventListener('click', onClick, true);
+  document.addEventListener('pointerdown', onPointerDown, true);
+  document.addEventListener('pointerup', onPointerUp, true);
+  document.addEventListener('contextmenu', onContextMenu, true);
   document.addEventListener('keydown', onKeyDown, true);
   document.addEventListener('wheel', onWheel, { capture: true, passive: false });
 }
@@ -255,6 +287,9 @@ export function stopPicking() {
   document.removeEventListener('mouseleave', onMouseLeave, true);
   document.removeEventListener('mousedown', onMouseDown, true);
   document.removeEventListener('mouseup', onMouseUp, true);
+  document.removeEventListener('pointerdown', onPointerDown, true);
+  document.removeEventListener('pointerup', onPointerUp, true);
+  document.removeEventListener('contextmenu', onContextMenu, true);
   document.removeEventListener('keydown', onKeyDown, true);
   document.removeEventListener('wheel', onWheel, true);
 
