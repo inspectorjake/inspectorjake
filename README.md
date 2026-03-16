@@ -9,7 +9,47 @@ Let AI agents inspect and interact with web pages through Chrome DevTools.
 
 ## What is Inspector Jake?
 
-Inspector Jake is an MCP (Model Context Protocol) server that connects AI assistants like Claude to Chrome DevTools. Agents can inspect page structure via ARIA trees, capture screenshots, read console logs, and interact with elements through clicks, typing, and navigation.
+Inspector Jake is an MCP (Model Context Protocol) server that connects AI assistants like Claude to Chrome DevTools. Agents can inspect page structure via ARIA trees, capture screenshots, read console logs, monitor network requests, and interact with elements through clicks, typing, and navigation.
+
+## Session Management
+
+When the MCP server starts, it automatically picks an available session name and port. Use `get_session_info` to find out which session you're on, and `set_session_name` to switch.
+
+### Getting the Session Name
+
+The agent should call `get_session_info` at the start of a conversation to tell you which session to connect to in the Chrome extension:
+
+```json
+// Response from get_session_info
+{
+  "sessionName": "annie",
+  "port": 52992,
+  "browserConnected": true,
+  "connectedTab": { "id": 123, "title": "My App", "url": "https://myapp.com" }
+}
+```
+
+Open the Inspector Jake DevTools tab and connect to the session name shown above.
+
+### Changing the Session Name
+
+Use `set_session_name` to switch to a different session at runtime. Predefined names (`jake`, `annie`, `kevin`, `elsa`) are auto-discovered by the Chrome extension. Custom names work too — the response includes the port for manual connection.
+
+```json
+// Request
+{ "name": "jake" }
+
+// Response
+{
+  "message": "Switched session from \"annie\" to \"jake\"",
+  "sessionName": "jake",
+  "port": 52340,
+  "previousName": "annie",
+  "previousPort": 52992
+}
+```
+
+After switching, re-scan sessions in the Chrome extension and connect to the new name. The previous browser connection is dropped.
 
 ## DevTools Panel
 
@@ -83,7 +123,7 @@ For Codex CLI, use Codex's MCP manager with the npm package directly:
 
 ```bash
 # 1) Add Inspector Jake MCP server to Codex
-codex mcp add inspector-jake -- npx -y inspector-jake-mcp@1.0.8
+codex mcp add inspector-jake -- npx -y inspector-jake-mcp@1.0.10
 
 # 2) Verify it was added
 codex mcp list
@@ -98,7 +138,7 @@ If you see `No such file or directory (os error 2)`, re-add with the full `npx` 
 which npx
 codex mcp remove inspector-jake
 # Replace /opt/homebrew/bin/npx with the path printed by `which npx`
-codex mcp add inspector-jake -- /opt/homebrew/bin/npx -y inspector-jake-mcp@1.0.8
+codex mcp add inspector-jake -- /opt/homebrew/bin/npx -y inspector-jake-mcp@1.0.10
 ```
 
 For Claude Code (global, available in all projects):
@@ -142,7 +182,7 @@ For other MCP clients (generic stdio):
 
 If you configured your client with `npx -y inspector-jake-mcp` (no pinned version), you'll automatically get the latest version next time the server starts. No action needed.
 
-If you pinned a version (e.g. `inspector-jake-mcp@1.0.8`), update the version number in your config or re-run the `mcp add` command with the new version.
+If you pinned a version (e.g. `inspector-jake-mcp@1.0.10`), update the version number in your config or re-run the `mcp add` command with the new version.
 
 If you installed globally:
 
@@ -276,9 +316,60 @@ Returns a base64-encoded PNG image of the matched element.
 }
 ```
 
+### get_network_requests
+
+**Request:**
+```json
+{
+  "urlPattern": "/api/",
+  "method": "POST",
+  "statusMin": 400,
+  "clear": true
+}
+```
+
+**Response:**
+```json
+{
+  "requests": [
+    {
+      "url": "https://example.com/api/users",
+      "method": "POST",
+      "status": 422,
+      "statusText": "Unprocessable Entity",
+      "type": "fetch",
+      "requestHeaders": { "content-type": "application/json" },
+      "responseHeaders": { "content-type": "application/json" },
+      "duration": 145,
+      "timestamp": 1700000000000
+    }
+  ]
+}
+```
+
+All parameters are optional. Omit them to get all captured requests. Captures fetch() and XMLHttpRequest traffic — does not include request/response bodies.
+
+### run_javascript
+
+**Request:**
+```json
+{
+  "code": "document.title"
+}
+```
+
+**Response:**
+```json
+{
+  "result": "My App - Dashboard"
+}
+```
+
 ## Session Discovery
 
-The extension discovers MCP servers using predefined session names, each mapping to a unique port. When the MCP server starts, it picks an available name and listens on its corresponding port. The extension scans ports to find active servers.
+The extension discovers MCP servers using predefined session names (`jake`, `annie`, `kevin`, `elsa`), each mapped to a deterministic port via hash. When the MCP server starts, it picks the first available name and listens on its port. The extension scans all four ports to find active servers.
+
+You can also switch to a custom session name at runtime using `set_session_name`. Custom names get a deterministic port but won't be auto-discovered by the extension — the agent will tell you the port number for manual connection.
 
 ## Development
 
