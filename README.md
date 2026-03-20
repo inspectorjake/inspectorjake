@@ -2,7 +2,9 @@
 
 # Inspector Jake
 
-Let AI agents inspect and interact with web pages through Chrome DevTools.
+Direct your agent to make updates with point and click.
+
+![demo](https://github.com/user-attachments/assets/a8bf51b2-d1f6-45ca-a28f-444777f06722)
 
 [![npm version](https://badge.fury.io/js/inspector-jake-mcp.svg)](https://www.npmjs.com/package/inspector-jake-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
