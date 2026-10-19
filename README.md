@@ -57,23 +57,31 @@ After switching, re-scan sessions in the Chrome extension and connect to the new
 
 <img src="docs/images/panel-overview.png" alt="Inspector Jake DevTools Panel" width="800">
 
-The Inspector Jake DevTools panel is your workspace for capturing elements, annotating them for the AI agent, and reviewing computed styles and accessibility trees.
+The Inspector Jake DevTools panel is your workspace for capturing elements, annotating them for the AI agent, reviewing computed styles and accessibility trees, and chatting with the Claude Code session it's attached to.
+
+### Chat with Claude
+
+<img src="docs/images/chat.png" alt="Chatting with the attached Claude Code session" width="800">
+
+Switch to **Chat** and send a message straight to the Claude Code session that started the MCP server. Every message carries the page plus all your captures and their notes, and Claude's reply shows up in the panel. Replies that arrive while DevTools is closed are kept for when you reopen it.
+
+Chat uses Claude Code's cross-session messaging, so the panel shows up as its own session (for example `jake-panel`) that Claude replies to. It works on macOS, Linux and Windows. Claude treats panel messages like a teammate's request: it acts on them, but never counts them as your approval for anything pending.
 
 ### Jake's Notes
 
-<img src="docs/images/jakes-notes.png" alt="Jake's Notes" width="500">
+<img src="docs/images/jakes-notes.png" alt="Jake's Notes" width="400">
 
-Pin elements or drag to capture regions, then add notes for the AI agent. Notes appear as context when the agent calls `see_jakes_notes`. Use them for requests like *"make this button bigger"*, *"fix the alignment here"*, or *"this color is wrong"*.
+Pin elements or drag to capture regions, then add notes for the AI agent. Notes appear as context when the agent calls `see_jakes_notes`, and go along with every chat message. Use them for requests like *"make this button bigger"*, *"fix the alignment here"*, or *"this color is wrong"*.
 
 ### Why ARIA Trees Instead of Raw HTML
 
-<img src="docs/images/accessibility-tree.png" alt="Accessibility Tree" width="500">
+<img src="docs/images/accessibility-tree.png" alt="Accessibility Tree" width="400">
 
 Inspector Jake uses ARIA accessibility trees instead of raw HTML for page inspection. Raw HTML is too verbose and noisy for LLM context windows. ARIA trees are a compact, semantic representation — roles, names, and states capture what the user sees and can interact with. Each element gets a ref (e.g., `s1e42`) that maps directly to interaction tools like `click_element` and `type_into_element`.
 
 ### Computed Styles & Send Styles
 
-<img src="docs/images/css-panel.png" alt="CSS Panel with Send Styles" width="500">
+<img src="docs/images/css-panel.png" alt="CSS Panel with Send Styles" width="400">
 
 The CSS panel shows computed styles for selected elements. The **Send Styles** setting controls how much CSS context the agent receives when it reads selections:
 
@@ -87,8 +95,9 @@ The CSS panel shows computed styles for selected elements. The **Send Styles** s
 <img src="docs/images/config-panel.png" alt="Configuration Panel" width="260">
 
 - **Computed Styles** — Choose how much CSS context to send (None / Lean / Non-Default / All)
+- **Accent** — Tint the panel blue, lime, purple or orange
 - **Screenshot Capture — Max Dimension** — Screenshots exceeding this limit (200–2000px, default 800) are downscaled proportionally
-- **Auto-clear Selections** — Clears captures automatically after the agent reads them via `see_jakes_notes`
+- **Clear after Claude sees them** — Clears captures automatically after the agent reads them via `see_jakes_notes`
 
 ## Architecture
 
