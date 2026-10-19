@@ -23,6 +23,26 @@ const roleDisplay = computed(() => {
   const roleAttr = props.attributes.find((attr) => attr.name === 'role');
   return roleAttr?.value ?? null;
 });
+
+/** Element role, ARIA attributes and all attributes, each as a grouped list */
+const attributeGroups = computed(() => {
+  const attributes = props.attributes ?? [];
+  const groups: Array<{ title: string; ariaNames: boolean; rows: Array<{ name: string; value: string }> }> = [
+    {
+      title: 'Element Role',
+      ariaNames: false,
+      rows: [
+        { name: 'tagName', value: props.tagName ?? 'unknown' },
+        ...(roleDisplay.value ? [{ name: 'role', value: roleDisplay.value }] : []),
+      ],
+    },
+  ];
+  if (ariaAttributes.value.length > 0) {
+    groups.push({ title: 'ARIA Attributes', ariaNames: true, rows: ariaAttributes.value });
+  }
+  groups.push({ title: `All Attributes (${attributes.length})`, ariaNames: false, rows: attributes });
+  return groups;
+});
 </script>
 
 <template>
@@ -51,26 +71,24 @@ const roleDisplay = computed(() => {
         <pre class="whitespace-pre-wrap bg-ios-bg rounded-[10px] p-3 overflow-x-auto custom-scrollbar"><code>{{ a11yPath }}</code></pre>
       </div>
 
-      <!-- Raw ARIA attributes -->
-      <pre class="whitespace-pre-wrap bg-ios-bg rounded-[10px] p-3"><code><!-- Tag/Role heading -->
-<span class="code-syntax-comment">// Element Role</span>
-<span class="code-syntax-tag">tagName</span>: <span class="code-syntax-val">"{{ tagName ?? 'unknown' }}"</span>
-<template v-if="roleDisplay">
-<span class="code-syntax-tag">role</span>: <span class="code-syntax-val">"{{ roleDisplay }}"</span>
-</template>
-
-<template v-if="ariaAttributes.length > 0">
-<span class="code-syntax-comment">// ARIA Attributes</span>
-<template v-for="attr in ariaAttributes" :key="attr.name">
-<span class="code-syntax-attr">{{ attr.name }}</span>: <span class="code-syntax-val">"{{ attr.value }}"</span>
-</template>
-</template>
-
-<span class="code-syntax-comment">// All Attributes ({{ attributes.length }})</span>
-<template v-for="attr in attributes" :key="'all-' + attr.name">
-<span class="code-syntax-tag">{{ attr.name }}</span>: <span class="code-syntax-val">"{{ attr.value }}"</span>
-</template>
-</code></pre>
+      <!-- Role and attributes, grouped like iOS Settings -->
+      <section
+        v-for="group in attributeGroups"
+        :key="group.title"
+        class="mb-3 last:mb-0 flex flex-col gap-1.5"
+      >
+        <h3 class="pl-1 text-[13px] font-display font-normal text-ios-label-secondary uppercase tracking-[0.2px]">{{ group.title }}</h3>
+        <dl class="m-0 rounded-[10px] bg-ios-bg overflow-hidden">
+          <div
+            v-for="row in group.rows"
+            :key="row.name"
+            class="relative flex items-center justify-between gap-3 px-3 min-h-[34px] after:absolute after:left-3 after:right-0 after:bottom-0 after:h-px after:bg-ios-separator last:after:hidden"
+          >
+            <dt :class="group.ariaNames ? 'code-syntax-attr' : 'code-syntax-tag'">{{ row.name }}</dt>
+            <dd class="m-0 code-syntax-val text-right truncate" :title="row.value">"{{ row.value }}"</dd>
+          </div>
+        </dl>
+      </section>
     </template>
   </div>
 </template>

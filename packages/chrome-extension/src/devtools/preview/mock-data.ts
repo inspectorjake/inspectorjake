@@ -129,7 +129,7 @@ export const MOCK_CHAT_HISTORY = [
 ];
 
 export const MOCK_CHAT_REPLIES = [
-  'Got it. I looked at the captures you sent; the button uses the brand lime but its 13px label fails contrast on the dark card.',
+  'Done. button.cta-primary is now 48px tall with a 16px label and 14px 28px padding, per your note. The nav collapses into a menu below 820px. Reload to see both.',
   'Done. I bumped the padding to 12px 20px and the radius to 8px in components/Button.vue. Reload the page to see it.',
   'That region is the pricing grid. The third card is 4px taller because its feature list has an extra line.',
 ];

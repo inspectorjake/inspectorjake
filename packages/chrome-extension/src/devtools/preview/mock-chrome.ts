@@ -26,6 +26,8 @@ const mockChat = {
   bridgeInfo: { ...MOCK_CHAT_BRIDGE } as { available: boolean; name?: string; parentName?: string; reason?: string },
   history: MOCK_CHAT_HISTORY.map((entry) => ({ ...entry })) as Array<Record<string, unknown>>,
   replyIndex: 0,
+  /** Captures the panel last synced, attached to each sent message like the real background */
+  captureCount: 0,
 };
 
 // ---------------------------------------------------------------------------
@@ -103,6 +105,7 @@ async function handleSendMessage(message: { type: string; [key: string]: unknown
       return { success: true };
 
     case 'SYNC_SELECTIONS':
+      mockChat.captureCount = Array.isArray(message.selections) ? message.selections.length : 0;
       return undefined;
 
     case 'CAPTURE_ELEMENT_SCREENSHOT': {
@@ -138,7 +141,7 @@ async function handleSendMessage(message: { type: string; [key: string]: unknown
         role: 'you',
         text: String(message.text).trim(),
         ts: Date.now(),
-        attachments: 0,
+        attachments: mockChat.captureCount,
         status: 'sending',
       };
       upsertChatEntry(entry);
