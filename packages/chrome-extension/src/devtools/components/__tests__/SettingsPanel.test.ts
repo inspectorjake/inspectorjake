@@ -9,14 +9,20 @@ const setComputedStylesMode = vi.fn(async () => true);
 let computedStylesMode: Ref<string>;
 let maxScreenshotDimension: Ref<number>;
 let autoClearSelectionsAfterSeen: Ref<boolean>;
+let accent: Ref<string>;
 
 vi.mock('../../composables/index.js', () => ({
   useSettings: () => ({
     computedStylesMode,
     maxScreenshotDimension,
     autoClearSelectionsAfterSeen,
+    accent,
     setComputedStylesMode,
   }),
+  ACCENTS: {
+    blue: { label: 'Blue', tint: '#0A84FF', fill: '#0063D6', on: '#FFFFFF' },
+    lime: { label: 'Lime', tint: '#BEF264', fill: '#BEF264', on: '#1C1C1E' },
+  },
 }));
 
 describe('SettingsPanel', () => {
@@ -25,6 +31,7 @@ describe('SettingsPanel', () => {
     computedStylesMode = ref('lean');
     maxScreenshotDimension = ref(800);
     autoClearSelectionsAfterSeen = ref(true);
+    accent = ref('blue');
   });
 
   it('renders panel content when open is true', () => {
@@ -154,4 +161,15 @@ describe('SettingsPanel', () => {
     expect(autoClearSelectionsAfterSeen.value).toBe(false);
   });
 
+  it('switches the accent color', async () => {
+    const wrapper = mount(SettingsPanel, {
+      props: { open: true },
+    });
+
+    expect(wrapper.find('[data-testid="accent-blue"]').attributes('aria-pressed')).toBe('true');
+    await wrapper.find('[data-testid="accent-lime"]').trigger('click');
+
+    expect(accent.value).toBe('lime');
+    expect(wrapper.find('[data-testid="accent-lime"]').attributes('aria-pressed')).toBe('true');
+  });
 });

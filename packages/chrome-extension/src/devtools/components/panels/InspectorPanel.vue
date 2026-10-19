@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
- * InspectorPanel - Tabbed inspector with CSS computed properties and Accessibility tabs.
- * Wraps CssPropertiesTab and AccessibilityTab with a tab bar.
+ * InspectorPanel - Inspector card with a CSS / Accessibility segmented control.
+ * Wraps CssPropertiesTab and AccessibilityTab.
  */
 import { ref } from 'vue';
 import CssPropertiesTab from './CssPropertiesTab.vue';
@@ -23,6 +23,11 @@ const emit = defineEmits<{
 type Tab = 'CSS' | 'ACCESSIBILITY';
 const activeTab = ref<Tab>('CSS');
 
+const TABS: Array<{ value: Tab; label: string }> = [
+  { value: 'CSS', label: 'CSS' },
+  { value: 'ACCESSIBILITY', label: 'Accessibility' },
+];
+
 const STYLE_MODES = [
   { value: ComputedStylesMode.NONE, label: 'None' },
   { value: ComputedStylesMode.LEAN, label: 'Lean' },
@@ -32,41 +37,37 @@ const STYLE_MODES = [
 </script>
 
 <template>
-  <div class="flex-1 border border-obsidian-600 rounded-lg bg-obsidian-700 flex flex-col overflow-hidden min-h-0 shadow-xl">
-    <!-- Tab bar -->
-    <div class="flex items-center justify-between px-4 border-b border-obsidian-600 bg-obsidian-800 h-10 shrink-0">
-      <div class="flex items-center gap-6 h-full">
+  <div class="flex-1 rounded-[14px] bg-ios-elevated flex flex-col overflow-hidden min-h-0">
+    <div class="p-3 flex flex-col gap-2 shrink-0 border-b border-ios-separator">
+      <!-- View switch -->
+      <div role="tablist" aria-label="Inspector view" class="flex p-[2px] rounded-[9px] bg-[rgba(118,118,128,0.24)]">
         <button
-          class="h-full text-xs font-bold transition-colors border-b-2 px-1 relative top-[1px]"
-          :class="activeTab === 'CSS'
-            ? 'text-white border-lime-accent'
-            : 'text-gray-500 border-transparent hover:text-gray-300'"
-          @click="activeTab = 'CSS'"
+          v-for="tab in TABS"
+          :key="tab.value"
+          role="tab"
+          :aria-selected="activeTab === tab.value"
+          class="flex-1 h-[30px] rounded-[7px] text-[13px] text-ios-label transition-colors"
+          :class="activeTab === tab.value
+            ? 'bg-ios-segment font-semibold shadow-[0_3px_8px_rgba(0,0,0,0.12)]'
+            : 'font-medium hover:bg-white/5'"
+          @click="activeTab = tab.value"
         >
-          CSS
-        </button>
-        <button
-          class="h-full text-xs font-bold transition-colors border-b-2 px-1 relative top-[1px]"
-          :class="activeTab === 'ACCESSIBILITY'
-            ? 'text-white border-lime-accent'
-            : 'text-gray-500 border-transparent hover:text-gray-300'"
-          @click="activeTab = 'ACCESSIBILITY'"
-        >
-          Accessibility
+          {{ tab.label }}
         </button>
       </div>
 
-      <!-- Styles mode toggle (only visible on CSS tab) -->
+      <!-- Styles mode (CSS view only) -->
       <div v-if="activeTab === 'CSS'" class="flex items-center gap-2">
-        <span class="text-[9px] text-gray-500 uppercase tracking-wide">Send Styles:</span>
-        <div class="flex border border-obsidian-600 rounded overflow-hidden">
+        <span class="text-[12px] text-ios-label-secondary whitespace-nowrap">Send Styles:</span>
+        <div class="flex-1 flex p-[2px] rounded-[8px] bg-[rgba(118,118,128,0.24)]">
           <button
             v-for="mode in STYLE_MODES"
             :key="mode.value"
-            class="px-2 py-0.5 text-[9px] font-medium transition-all border-r border-obsidian-600 last:border-r-0"
+            class="flex-1 h-[24px] px-1.5 rounded-[6px] text-[12px] text-ios-label whitespace-nowrap transition-colors"
             :class="computedStylesMode === mode.value
-              ? 'bg-lime-accent text-obsidian-900'
-              : 'text-gray-400 hover:text-white hover:bg-obsidian-600'"
+              ? 'bg-ios-segment font-semibold'
+              : 'font-medium text-ios-label-secondary hover:text-ios-label'"
+            :aria-pressed="computedStylesMode === mode.value"
             @click="emit('update:computedStylesMode', mode.value)"
           >
             {{ mode.label }}
@@ -76,7 +77,7 @@ const STYLE_MODES = [
     </div>
 
     <!-- Tab content -->
-    <div class="flex-1 overflow-auto custom-scrollbar bg-obsidian-900/50 min-h-0">
+    <div class="flex-1 overflow-auto custom-scrollbar min-h-0">
       <CssPropertiesTab
         v-if="activeTab === 'CSS'"
         :computed-styles="computedStyles"

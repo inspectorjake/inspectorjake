@@ -12,8 +12,15 @@ import {
   disconnectSession,
   updateConnectedTab,
   handleKeepaliveAlarm,
+  setChatListeners,
   KEEPALIVE_ALARM_NAME,
 } from './ws-client.js';
+import {
+  getChatState,
+  sendChatMessage,
+  handleChatServerMessage,
+  handleChatDisconnected,
+} from './chat.js';
 import {
   updateSelectedElement,
   markDevToolsOpen,
@@ -31,6 +38,12 @@ chrome.alarms.onAlarm.addListener((alarm) => {
     handleKeepaliveAlarm();
   }
 });
+
+// Chat pushes from the MCP server (replies from the Claude Code session, delivery status)
+setChatListeners(
+  (message, sessionName) => void handleChatServerMessage(message, sessionName),
+  handleChatDisconnected
+);
 
 // Handle messages from popup and DevTools
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -208,6 +221,12 @@ async function handleMessage(
       }
       return { success: true };
     }
+
+    case 'CHAT_SEND':
+      return sendChatMessage(typeof message.text === 'string' ? message.text : '');
+
+    case 'GET_CHAT_STATE':
+      return getChatState();
 
     default:
       return { error: 'Unknown message type' };

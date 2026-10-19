@@ -9,7 +9,8 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
-import type { WsServerInstance } from './ws-server.js';
+import type { WsServerHooks, WsServerInstance } from './ws-server.js';
+import type { SessionBridge } from './session-bridge.js';
 import { log } from './logger.js';
 import { toolDefs, dispatchTool } from './tool-registry.js';
 
@@ -21,9 +22,20 @@ export interface SessionInfo {
 export interface SessionState {
   wsServer: WsServerInstance;
   sessionInfo: SessionInfo;
+  /** Hooks given to every WS server, including ones created by set_session_name */
+  wsHooks: WsServerHooks;
+  /** Chat link to the Claude Code session that spawned this server */
+  bridge: SessionBridge;
 }
 
 export async function createMcpServer(state: SessionState): Promise<void> {
+  const chat = state.bridge.info();
+  const chatInstructions = chat.available
+    ? `
+
+The user can also chat with you from the panel. Those messages arrive as cross-session messages from "${chat.name}"; reply with SendMessage to "${chat.name}" so the answer shows in the panel.`
+    : '';
+
   const server = new Server(
     {
       name: 'vibejake',
@@ -44,7 +56,7 @@ To use this server:
 3. Click "Refresh" to scan for sessions
 4. Connect to session "${state.sessionInfo.sessionName}"
 
-Once connected, use the inspector tools to interact with the page.`,
+Once connected, use the inspector tools to interact with the page.${chatInstructions}`,
     }
   );
 

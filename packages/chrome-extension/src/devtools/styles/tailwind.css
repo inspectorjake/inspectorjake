@@ -1,24 +1,40 @@
-/* Tailwind CSS v4 entry + custom design tokens for Jake MCP DevTools panel. */
+/* Tailwind CSS v4 entry + design tokens for the Inspector Jake DevTools panel (iOS dark appearance). */
 @import "tailwindcss";
 
-/* Design tokens */
+/* Design tokens: iOS dark-mode system colors and type */
 @theme {
-  --color-obsidian-950: #050505;
-  --color-obsidian-900: #0a0a0a;
-  --color-obsidian-800: #1e1e1e;
-  --color-obsidian-700: #2a2a2a;
-  --color-obsidian-600: #3a3a3a;
+  /* Backgrounds, from the page down to controls */
+  --color-ios-bg: #000000;
+  --color-ios-elevated: #1c1c1e;
+  --color-ios-fill: #2c2c2e;
+  --color-ios-fill-strong: #3a3a3c;
+  --color-ios-separator: #38383a;
+  --color-ios-segment: #636366;
 
-  --color-lime-accent: #bef264;
-  --color-lime-glow: rgba(190, 242, 100, 0.2);
+  /* Labels. Secondary passes 4.5:1 on every background above. */
+  --color-ios-label: #ffffff;
+  --color-ios-label-secondary: #98989f;
+  --color-ios-label-tertiary: #8e8e93;
 
-  --font-display: 'Inter', sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  /* System colors */
+  --color-ios-green: #30d158;
+  --color-ios-red: #ff453a;
+  --color-ios-orange: #ff9f0a;
+  --color-ios-yellow: #ffd60a;
+  --color-ios-purple: #bf5af2;
+
+  /* Accent (tint). Overridden at runtime from Settings > Accent. */
+  --color-tint: #0a84ff;
+  --color-tint-fill: #0063d6;
+  --color-on-tint: #ffffff;
+
+  --font-display: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, 'Inter', sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
 
   --animate-pulse-slow: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-/* Bundled fonts */
+/* Bundled fallback fonts for systems without SF */
 @font-face {
   font-family: 'Inter';
   font-style: normal;
@@ -53,6 +69,18 @@ textarea:disabled {
   cursor: not-allowed;
 }
 
+/* Keyboard focus ring in the accent color. In the base layer so component utilities can override it. */
+@layer base {
+  button:focus-visible,
+  a:focus-visible,
+  [role='button']:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid var(--color-tint);
+    outline-offset: 2px;
+  }
+}
+
 /* Custom scrollbar */
 @utility custom-scrollbar {
   &::-webkit-scrollbar {
@@ -63,30 +91,38 @@ textarea:disabled {
     background: transparent;
   }
   &::-webkit-scrollbar-thumb {
-    background: #3a3a3a;
+    background: #48484a;
     border-radius: 4px;
-    border: 2px solid #2a2a2a;
+    border: 2px solid transparent;
+    background-clip: padding-box;
   }
   &::-webkit-scrollbar-thumb:hover {
-    background: #4a4a4a;
+    background: #636366;
+    background-clip: padding-box;
   }
 }
 
-/* Syntax highlighting utilities */
+/* Translucent bar material */
+@utility ios-material {
+  background-color: rgba(28, 28, 30, 0.82);
+  backdrop-filter: blur(24px) saturate(1.6);
+}
+
+/* Code syntax colors (Xcode dark) */
 @utility code-syntax-tag {
-  color: #f472b6;
+  color: #fc5fa3;
 }
 
 @utility code-syntax-attr {
-  color: #bef264;
+  color: #67b7a4;
 }
 
 @utility code-syntax-val {
-  color: #7dd3fc;
+  color: #fc6a5d;
 }
 
 @utility code-syntax-comment {
-  color: #888888;
+  color: #7f8c98;
 }
 
 /* Logs slide transition */
@@ -98,9 +134,9 @@ textarea:disabled {
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Settings panel slide-in from right */
+/* Settings sheet slide-in from right */
 @utility settings-slide-enter-active {
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 @utility settings-slide-leave-active {
@@ -115,32 +151,46 @@ textarea:disabled {
   transform: translateX(100%);
 }
 
-/* Custom range slider — industrial instrument look */
+/* iOS slider */
 .settings-range-slider {
   -webkit-appearance: none;
   appearance: none;
   height: 4px;
-  background: #3a3a3a;
+  background: #3a3a3c;
   border-radius: 2px;
   outline: none;
 }
 
 .settings-range-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 14px;
-  height: 14px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
-  background: #bef264;
-  border: 2px solid #050505;
+  background: #ffffff;
+  border: 0;
   cursor: pointer;
-  box-shadow: 0 0 6px rgba(190, 242, 100, 0.3);
-  transition: box-shadow 0.15s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
 }
 
-.settings-range-slider::-webkit-slider-thumb:hover {
-  box-shadow: 0 0 12px rgba(190, 242, 100, 0.5);
+/* iOS switch, drawn on a native checkbox so it stays accessible */
+.ios-switch {
+  -webkit-appearance: none;
+  appearance: none;
+  flex-shrink: 0;
+  width: 51px;
+  height: 31px;
+  margin: 0;
+  border-radius: 999px;
+  background-color: #39393d;
+  background-image: radial-gradient(circle, #ffffff 0 13px, transparent 13.5px);
+  background-size: 31px 31px;
+  background-repeat: no-repeat;
+  background-position: left center;
+  transition: background-color 0.2s ease, background-position 0.2s ease;
+  cursor: pointer;
 }
 
-.settings-range-slider::-webkit-slider-thumb:active {
-  box-shadow: 0 0 16px rgba(190, 242, 100, 0.7);
+.ios-switch:checked {
+  background-color: var(--color-ios-green);
+  background-position: right center;
 }
