@@ -11,19 +11,59 @@ import type {
   ToolResponse,
   ToolType,
   DiscoveryResponse,
+  ChatBridgeInfo,
+  ChatSendMessage,
+  ChatServerMessage,
 } from '@inspector-jake/shared';
 import { log } from './logger.js';
 
 const PING_INTERVAL_MS = 15000;
 const REQUEST_TIMEOUT_MS = 30000;
+/** Chat pushes kept while no extension is connected */
+const MAX_OUTBOX = 50;
+
+export interface WsServerHooks {
+  /** Deliver a chat message typed in the DevTools panel. Rejects with a user-facing reason. */
+  onChatSend?: (message: ChatSendMessage) => Promise<void>;
+  /** Chat availability, sent to each extension when it connects. */
+  getChatBridgeInfo?: () => ChatBridgeInfo;
+}
 
 export interface WsServerInstance {
   port: number;
   sendToolRequest: (type: ToolType, payload: unknown) => Promise<ToolResponse>;
+  /** Push a chat message or status to the extension, buffering it while none is connected. */
+  pushToClient: (message: ChatServerMessage) => void;
   isConnected: () => boolean;
   getDiscoveryInfo: () => DiscoveryResponse;
   setSessionName: (name: string) => void;
   close: () => void;
+}
+
+/**
+ * Only Chrome extensions may connect. Browsers always send Origin on WebSocket
+ * upgrades, so this stops web pages from driving the session through localhost.
+ * Set INSPECTOR_JAKE_EXTENSION_IDS (comma-separated) to allow specific IDs only.
+ */
+export function isAllowedOrigin(
+  origin: string | undefined,
+  allowedIds: string[] = (process.env.INSPECTOR_JAKE_EXTENSION_IDS ?? '')
+    .split(',')
+    .map((id) => id.trim())
+    .filter(Boolean)
+): boolean {
+  const match = origin?.match(/^chrome-extension:\/\/([a-p]{32})$/);
+  if (!match) return false;
+  return allowedIds.length === 0 || allowedIds.includes(match[1]);
+}
+
+function isChatSendMessage(message: any): message is ChatSendMessage {
+  return (
+    message?.type === 'chat_send' &&
+    typeof message.id === 'string' &&
+    typeof message.text === 'string' &&
+    Array.isArray(message.selections)
+  );
 }
 
 interface PendingRequest {
@@ -32,9 +72,10 @@ interface PendingRequest {
   timeout: NodeJS.Timeout;
 }
 
-export async function createWsServer(port: number): Promise<WsServerInstance> {
+export async function createWsServer(port: number, hooks: WsServerHooks = {}): Promise<WsServerInstance> {
   return new Promise((resolve, reject) => {
     const pendingRequests = new Map<string, PendingRequest>();
+    const outbox: ChatServerMessage[] = [];
     let clientSocket: WebSocket | null = null;
     let sessionName: string = '';
     let connectedTabInfo: { id: number; title: string; url: string } | undefined;
@@ -71,6 +112,34 @@ export async function createWsServer(port: number): Promise<WsServerInstance> {
       return clientSocket !== null && clientSocket.readyState === WebSocket.OPEN;
     }
 
+    function pushToClient(message: ChatServerMessage): void {
+      if (isClientConnected()) {
+        clientSocket!.send(JSON.stringify(message));
+        return;
+      }
+      if (message.type === 'chat_message' || message.type === 'chat_status') {
+        outbox.push(message);
+        if (outbox.length > MAX_OUTBOX) outbox.shift();
+      }
+    }
+
+    async function handleChatSend(ws: WebSocket, message: ChatSendMessage): Promise<void> {
+      const ack = (ok: boolean, error?: string) =>
+        ws.send(JSON.stringify({ type: 'chat_ack', id: message.id, ok, ...(error && { error }) }));
+
+      if (!hooks.onChatSend) {
+        ack(false, 'Chat is not available in this MCP server.');
+        return;
+      }
+      try {
+        await hooks.onChatSend(message);
+        ack(true);
+      } catch (err) {
+        log.warn('WS', 'Chat send failed:', (err as Error).message);
+        ack(false, (err as Error).message);
+      }
+    }
+
     // Create HTTP server for health endpoint (enables silent discovery pre-checks)
     const httpServer: HttpServer = createServer((req, res) => {
       // CORS headers for cross-origin fetch from extension
@@ -100,7 +169,14 @@ export async function createWsServer(port: number): Promise<WsServerInstance> {
     });
 
     // Create WebSocket server attached to HTTP server
-    const wss = new WebSocketServer({ server: httpServer });
+    const wss = new WebSocketServer({
+      server: httpServer,
+      verifyClient: ({ origin }: { origin: string }) => {
+        if (isAllowedOrigin(origin)) return true;
+        log.warn('WS', `Rejected WebSocket connection from origin: ${origin || '(none)'}`);
+        return false;
+      },
+    });
 
     // Handle WebSocketServer errors (fires when httpServer fails to bind)
     wss.on('error', (err) => {
@@ -154,6 +230,8 @@ export async function createWsServer(port: number): Promise<WsServerInstance> {
           });
         },
 
+        pushToClient,
+
         isConnected: isClientConnected,
 
         getDiscoveryInfo: (): DiscoveryResponse => {
@@ -190,12 +268,23 @@ export async function createWsServer(port: number): Promise<WsServerInstance> {
         return;
       }
 
-      // Regular extension connection
+      // Regular extension connection. Only one client at a time: a newer one replaces the old.
       log.info('WS', 'Browser extension connected');
+      if (clientSocket && clientSocket !== ws) {
+        log.info('WS', 'Closing previous extension connection');
+        clientSocket.close(4000, 'Replaced by a newer connection');
+      }
       clientSocket = ws;
 
       // Start server-side heartbeat
       startPingInterval(ws);
+
+      if (hooks.getChatBridgeInfo) {
+        ws.send(JSON.stringify({ type: 'chat_bridge_info', ...hooks.getChatBridgeInfo() }));
+      }
+      for (const message of outbox.splice(0)) {
+        ws.send(JSON.stringify(message));
+      }
 
       // Protocol-level pong handler (browser responds automatically to ws.ping())
       ws.on('pong', () => {
@@ -228,6 +317,12 @@ export async function createWsServer(port: number): Promise<WsServerInstance> {
           if (message.type === 'EXTENSION_STATUS') {
             connectedTabInfo = message.tab;
             log.info('WS', `Connected to tab: ${message.tab?.title || 'unknown'}`);
+            return;
+          }
+
+          // Chat message typed in the DevTools panel
+          if (isChatSendMessage(message)) {
+            void handleChatSend(ws, message);
           }
         } catch (err) {
           log.error('WS', 'Error parsing WebSocket message:', err);
@@ -236,6 +331,8 @@ export async function createWsServer(port: number): Promise<WsServerInstance> {
 
       ws.on('close', () => {
         log.info('WS', 'Browser extension disconnected');
+        // A replaced connection closing must not clear its successor
+        if (clientSocket !== ws) return;
         stopPingInterval();
         clientSocket = null;
         connectedTabInfo = undefined;

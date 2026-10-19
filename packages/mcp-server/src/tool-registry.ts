@@ -7,6 +7,7 @@ import type { ToolType } from '@inspector-jake/shared';
 import { nameToPort } from '@inspector-jake/shared';
 import type { WsServerInstance } from './ws-server.js';
 import { createWsServer } from './ws-server.js';
+import { bridgeNameFor } from './session-bridge.js';
 import type { SessionState } from './server.js';
 import type { ToolResult, SelectionData } from './response-builder.js';
 import {
@@ -175,6 +176,7 @@ export const toolDefs: ToolDef[] = [
         port: state.sessionInfo.port,
         browserConnected: discoveryInfo.status === 'connected',
         connectedTab: discoveryInfo.connectedTab || null,
+        chat: state.bridge.info(),
       });
     },
   },
@@ -208,7 +210,7 @@ export const toolDefs: ToolDef[] = [
       // Create new server BEFORE closing old — if port is taken, return error without disruption
       let newWsServer: WsServerInstance;
       try {
-        newWsServer = await createWsServer(newPort);
+        newWsServer = await createWsServer(newPort, state.wsHooks);
         newWsServer.setSessionName(newName);
       } catch {
         return errorResponse(
@@ -222,6 +224,7 @@ export const toolDefs: ToolDef[] = [
 
       state.wsServer = newWsServer;
       state.sessionInfo = { sessionName: newName, port: newPort };
+      state.bridge.rename(bridgeNameFor(newName));
 
       log.info('Tool', `Session renamed: ${oldName}:${oldPort} -> ${newName}:${newPort}`);
 

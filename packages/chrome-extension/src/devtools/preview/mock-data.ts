@@ -99,3 +99,37 @@ export function generateMockScreenshot(width: number, height: number): string {
 
   return canvas.toDataURL('image/png');
 }
+
+// ---------------------------------------------------------------------------
+// Chat with the attached Claude Code session
+// ---------------------------------------------------------------------------
+
+export const MOCK_CHAT_BRIDGE = {
+  available: true,
+  name: 'annie-panel',
+  parentName: 'inspector-jake-de',
+};
+
+export const MOCK_CHAT_HISTORY = [
+  {
+    id: 'mock-chat-1',
+    role: 'you' as const,
+    text: 'Why does the nav wrap on tablet widths?',
+    ts: Date.now() - 5 * 60_000,
+    attachments: 1,
+    status: 'sent' as const,
+  },
+  {
+    id: 'mock-chat-2',
+    role: 'claude' as const,
+    text: 'nav.main-navigation is display:flex with no flex-wrap: nowrap, and the links have a fixed 24px gap.\nBelow ~820px the five links no longer fit, so they wrap. I can switch it to a scrollable row or collapse it into a menu.',
+    ts: Date.now() - 4 * 60_000,
+    fromName: 'inspector-jake-de',
+  },
+];
+
+export const MOCK_CHAT_REPLIES = [
+  'Got it. I looked at the captures you sent; the button uses the brand lime but its 13px label fails contrast on the dark card.',
+  'Done. I bumped the padding to 12px 20px and the radius to 8px in components/Button.vue. Reload the page to see it.',
+  'That region is the pricing grid. The third card is 4px taller because its feature list has an extra line.',
+];

@@ -207,6 +207,89 @@ export type ExtensionMessage =
   | ExtensionDisconnectionMessage;
 
 // =============================================================================
+// Chat bridge (DevTools panel <-> MCP server <-> attached Claude Code session)
+// =============================================================================
+
+/** A selection as attached to a chat message: the see_jakes_notes shape without image data. */
+export type ChatSelection = Omit<GetSelectionsResponse['selections'][number], 'image'> & {
+  frameId?: number;
+};
+
+export interface ChatPageContext {
+  url: string;
+  title: string;
+}
+
+/** Extension -> server: send a chat message to the attached Claude Code session. */
+export interface ChatSendMessage {
+  type: 'chat_send';
+  id: string;
+  text: string;
+  page?: ChatPageContext;
+  selections: ChatSelection[];
+}
+
+/** Server -> extension: result of a chat_send. */
+export interface ChatAckMessage {
+  type: 'chat_ack';
+  id: string;
+  ok: boolean;
+  error?: string;
+}
+
+/** Server -> extension: a message another session sent to the bridge. */
+export interface ChatInboundMessage {
+  type: 'chat_message';
+  id: string;
+  from: string;
+  fromName?: string;
+  text: string;
+  ts: number;
+}
+
+/** Server -> extension: delivery status reported by the receiving session (held, refused, ...). */
+export interface ChatStatusMessage {
+  type: 'chat_status';
+  status: string;
+  reason?: string;
+  ts: number;
+}
+
+export interface ChatBridgeInfo {
+  available: boolean;
+  /** Name the bridge is registered under, e.g. "jake-panel" */
+  name?: string;
+  /** Name of the attached Claude Code session, when known */
+  parentName?: string;
+  /** Why chat is unavailable */
+  reason?: string;
+}
+
+export interface ChatBridgeInfoMessage extends ChatBridgeInfo {
+  type: 'chat_bridge_info';
+}
+
+export type ChatServerMessage =
+  | ChatAckMessage
+  | ChatInboundMessage
+  | ChatStatusMessage
+  | ChatBridgeInfoMessage;
+
+/** One row in the panel's chat history. */
+export interface ChatEntry {
+  id: string;
+  role: 'you' | 'claude' | 'system';
+  text: string;
+  ts: number;
+  fromName?: string;
+  /** Number of captures attached to a message you sent */
+  attachments?: number;
+  /** Delivery state of a message you sent */
+  status?: 'sending' | 'sent' | 'failed';
+  error?: string;
+}
+
+// =============================================================================
 // ARIA Tree Types (for get_page_info tool)
 // =============================================================================
 

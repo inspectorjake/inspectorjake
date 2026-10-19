@@ -1,12 +1,20 @@
+<script lang="ts">
+export type ViewMode = 'preview' | 'chat'
+</script>
+
 <script setup lang="ts">
 /**
- * ViewToggleBar - Top bar with Preview/Code view toggle and utility icons.
- * Preview is the active view; Code is a placeholder stub.
+ * ViewToggleBar - Top bar with Preview/Chat view toggle and utility icons.
  */
-import { ref } from 'vue'
+defineProps<{
+  modelValue: ViewMode
+  /** Replies that arrived while the chat view was closed */
+  chatUnread?: number
+}>()
 
-type ViewMode = 'preview' | 'code'
-const activeView = ref<ViewMode>('preview')
+const emit = defineEmits<{
+  'update:modelValue': [value: ViewMode]
+}>()
 </script>
 
 <template>
@@ -15,25 +23,38 @@ const activeView = ref<ViewMode>('preview')
     <div class="flex items-center gap-1">
       <button
         class="flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition-colors"
-        :class="activeView === 'preview'
+        :class="modelValue === 'preview'
           ? 'text-white bg-obsidian-800'
           : 'text-gray-500 hover:text-gray-300'"
-        @click="activeView = 'preview'"
+        data-testid="view-preview"
+        @click="emit('update:modelValue', 'preview')"
       >
         <span
-          v-if="activeView === 'preview'"
+          v-if="modelValue === 'preview'"
           class="w-1.5 h-1.5 rounded-full bg-lime-accent"
         />
         Preview
       </button>
       <button
         class="flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition-colors"
-        :class="activeView === 'code'
+        :class="modelValue === 'chat'
           ? 'text-white bg-obsidian-800'
           : 'text-gray-500 hover:text-gray-300'"
-        @click="activeView = 'code'"
+        data-testid="view-chat"
+        @click="emit('update:modelValue', 'chat')"
       >
-        Code
+        <span
+          v-if="modelValue === 'chat'"
+          class="w-1.5 h-1.5 rounded-full bg-lime-accent"
+        />
+        Chat
+        <span
+          v-if="modelValue !== 'chat' && chatUnread"
+          class="min-w-4 h-4 px-1 rounded-full bg-lime-accent text-obsidian-900 text-[9px] font-bold leading-4 text-center animate-pulse"
+          data-testid="chat-unread"
+        >
+          {{ chatUnread }}
+        </span>
       </button>
     </div>
 

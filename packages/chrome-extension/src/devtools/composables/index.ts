@@ -6,3 +6,4 @@ export { useConnection, type DiscoveredSession, type ConnectionStatus } from './
 export { usePicker, PickerMessageType, type BoundingRect, type UsePickerReturn } from './usePicker.js';
 export { useLogs, LogLevel, LogSource, type LogEntry, type UseLogsReturn } from './useLogs.js';
 export { useSettings } from './useSettings.js';
+export { useChat } from './useChat.js';

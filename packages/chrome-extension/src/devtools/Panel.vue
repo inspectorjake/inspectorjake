@@ -4,24 +4,26 @@
  * Composes child components and wires composable state.
  */
 
-import { computed, ref, onMounted, onUnmounted } from 'vue';
+import { computed, ref, watch, onMounted, onUnmounted } from 'vue';
 import { ComputedStylesMode } from '@inspector-jake/shared';
-import type { ElementInfo, Selection } from '@inspector-jake/shared';
+import type { ChatBridgeInfo, ChatEntry, ElementInfo, Selection } from '@inspector-jake/shared';
 import {
   useSelections,
   useConnection,
   usePicker,
   useLogs,
   useSettings,
+  useChat,
   LogLevel,
   LogSource,
   type DiscoveredSession,
 } from './composables/index.js';
 
-import ViewToggleBar from './components/ViewToggleBar.vue';
+import ViewToggleBar, { type ViewMode } from './components/ViewToggleBar.vue';
 import AppHeader from './components/AppHeader.vue';
 import CapturesSidebar from './components/CapturesSidebar.vue';
 import WorkspaceLayout from './components/WorkspaceLayout.vue';
+import ChatPanel from './components/panels/ChatPanel.vue';
 import SettingsPanel from './components/SettingsPanel.vue';
 
 // ============================================================================
@@ -81,12 +83,48 @@ const showSettings = ref(false);
 let modeUpdateToken = 0;
 function toggleSettings() { showSettings.value = !showSettings.value; }
 
+const {
+  messages: chatMessages,
+  bridgeInfo: chatBridgeInfo,
+  sending: chatSending,
+  error: chatError,
+  unread: chatUnread,
+  refresh: refreshChat,
+  send: sendChat,
+  handleEntry: handleChatEntry,
+  handleBridgeInfo: handleChatBridgeInfo,
+  markRead: markChatRead,
+  reset: resetChat,
+} = useChat();
+const activeView = ref<ViewMode>('preview');
+const chatDraft = ref('');
+
+async function handleChatSend(): Promise<void> {
+  if (await sendChat(chatDraft.value)) {
+    chatDraft.value = '';
+  }
+}
+
 // ============================================================================
 // Computed
 // ============================================================================
 
 const error = computed(() => connectionError.value || pickerError.value);
 const hasLogErrors = computed(() => logs.value.some(l => l.level === LogLevel.ERROR));
+const noteCount = computed(() => selections.value.filter(s => s.note?.trim()).length);
+
+// Load the chat for whichever MCP session we're connected to
+watch(connectedSessionName, (name) => {
+  if (name) {
+    refreshChat();
+  } else {
+    resetChat();
+  }
+});
+
+watch(activeView, (view) => {
+  if (view === 'chat') markChatRead();
+});
 
 async function handleComputedStylesModeUpdate(mode: ComputedStylesMode): Promise<void> {
   const token = ++modeUpdateToken;
@@ -112,6 +150,8 @@ const MessageType = {
   REGION_SELECTED: 'REGION_SELECTED',
   REGION_CANCELLED: 'REGION_CANCELLED',
   SELECTIONS_AUTO_CLEARED: 'SELECTIONS_AUTO_CLEARED',
+  CHAT_ENTRY: 'CHAT_ENTRY',
+  CHAT_BRIDGE_INFO: 'CHAT_BRIDGE_INFO',
 } as const;
 
 type MessageTypeValue = typeof MessageType[keyof typeof MessageType];
@@ -204,6 +244,17 @@ async function handleMessage(message: { type: string; [key: string]: unknown }):
     case MessageType.SELECTIONS_AUTO_CLEARED:
       clearAllSelections();
       break;
+
+    case MessageType.CHAT_ENTRY:
+      handleChatEntry(
+        { sessionName: message.sessionName as string | undefined, entry: message.entry as ChatEntry },
+        activeView.value === 'chat'
+      );
+      break;
+
+    case MessageType.CHAT_BRIDGE_INFO:
+      handleChatBridgeInfo({ bridgeInfo: (message.bridgeInfo ?? null) as ChatBridgeInfo | null });
+      break;
   }
 }
 
@@ -238,7 +289,7 @@ onUnmounted(() => {
 <template>
   <div class="relative h-full flex flex-col overflow-hidden bg-obsidian-900 text-gray-300 font-display antialiased" @click="handlePanelClick">
     <!-- View toggle bar -->
-    <ViewToggleBar />
+    <ViewToggleBar v-model="activeView" :chat-unread="chatUnread" />
 
     <!-- Header -->
     <AppHeader
@@ -290,7 +341,7 @@ onUnmounted(() => {
 
       <!-- Workspace: preview + inspector + logs -->
       <WorkspaceLayout
-        v-if="isConnected"
+        v-if="isConnected && activeView === 'preview'"
         :expanded-selection="expandedSelection"
         :logs="logs"
         :show-logs="showLogs"
@@ -299,6 +350,19 @@ onUnmounted(() => {
         @close-logs="toggleLogs"
         @update:computed-styles-mode="handleComputedStylesModeUpdate"
         @update:note="updateSelectionNote"
+      />
+
+      <!-- Chat with the attached Claude Code session -->
+      <ChatPanel
+        v-else-if="isConnected"
+        v-model:draft="chatDraft"
+        :messages="chatMessages"
+        :bridge-info="chatBridgeInfo"
+        :sending="chatSending"
+        :error="chatError"
+        :capture-count="selections.length"
+        :note-count="noteCount"
+        @send="handleChatSend"
       />
     </div>
 

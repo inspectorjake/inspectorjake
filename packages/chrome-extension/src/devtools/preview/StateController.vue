@@ -4,7 +4,13 @@
  * Dispatches mock Chrome messages to simulate different UI states.
  */
 import { ref } from 'vue'
-import { dispatchMessage, mockState } from './mock-chrome'
+import {
+  dispatchMessage,
+  mockState,
+  simulateChatReply,
+  simulateChatHeld,
+  toggleChatAvailable,
+} from './mock-chrome'
 import {
   MOCK_ELEMENT_NAV,
   MOCK_ELEMENT_BUTTON,
@@ -95,6 +101,26 @@ function simulatePickerCancel(): void {
           @click="simulateDisconnect"
         >
           Simulate Disconnect
+        </button>
+
+        <!-- Chat -->
+        <button
+          class="w-full px-3 py-1.5 bg-purple-400/10 text-purple-400 border border-purple-400/20 rounded hover:bg-purple-400/20 transition-colors text-left"
+          @click="simulateChatReply()"
+        >
+          Simulate Claude Reply
+        </button>
+        <button
+          class="w-full px-3 py-1.5 bg-amber-400/10 text-amber-400 border border-amber-400/20 rounded hover:bg-amber-400/20 transition-colors text-left"
+          @click="simulateChatHeld"
+        >
+          Simulate Held Message
+        </button>
+        <button
+          class="w-full px-3 py-1.5 bg-gray-400/10 text-gray-300 border border-gray-400/20 rounded hover:bg-gray-400/20 transition-colors text-left"
+          @click="toggleChatAvailable"
+        >
+          Toggle Chat Availability
         </button>
 
         <!-- Cancel picker -->

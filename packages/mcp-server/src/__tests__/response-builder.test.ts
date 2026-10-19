@@ -9,6 +9,9 @@ import {
   jsonResponse,
   imageResponse,
   renderSelections,
+  renderSelectionsText,
+  buildChatBody,
+  CHAT_BODY_SOFT_LIMIT,
   type ContentItem,
   type SelectionData,
 } from '../response-builder.js';
@@ -226,5 +229,127 @@ describe('renderSelections', () => {
         expect(item.text).not.toContain('User note');
       }
     }
+  });
+});
+
+describe('renderSelections with the extension wire format', () => {
+  it('uses the preformatted dimensions when width and height are absent', () => {
+    // buildSelectionsResponse() in the extension sends `dimensions` + `rect`, not width/height
+    const content = renderSelections([
+      {
+        type: 'element',
+        id: 'el-1',
+        selector: 'button.cta',
+        tagName: 'button',
+        dimensions: '120x40',
+        rect: { x: 0, y: 0, width: 120, height: 40 },
+        hint: 'hint',
+      },
+    ]);
+    expect(content[0].text).toContain('(120x40)');
+    expect(content[0].text).not.toContain('NaN');
+  });
+});
+
+describe('renderSelectionsText', () => {
+  const element: SelectionData = {
+    type: 'element',
+    id: 'el-1',
+    selector: 'button.cta',
+    tagName: 'button',
+    dimensions: '120x40',
+    rect: { x: 0, y: 0, width: 120, height: 40 },
+    hint: 'Use view_image_in_jakes_notes tool with imageId="el-1" to see this element\'s screenshot',
+    note: 'Make this bigger',
+    computedStyles: { 'font-size': '14px' },
+  };
+  const shot: SelectionData = {
+    type: 'screenshot',
+    id: 'ss-1',
+    dimensions: '800x300',
+    rect: { x: 0, y: 0, width: 800, height: 300 },
+    note: 'Too much whitespace',
+  };
+
+  it('returns an empty string without selections', () => {
+    expect(renderSelectionsText([])).toBe('');
+    expect(renderSelectionsText(undefined)).toBe('');
+  });
+
+  it('renders elements and screenshot regions as text, with notes', () => {
+    const text = renderSelectionsText([element, shot]);
+    expect(text).toContain('Element selections (1):');
+    expect(text).toContain('[el-1] button "button.cta" (120x40)');
+    expect(text).toContain('User note: "Make this bigger"');
+    expect(text).toContain('font-size: 14px');
+    expect(text).toContain('Screenshot regions (1):');
+    expect(text).toContain('[ss-1] 800x300');
+    expect(text).toContain('User note: "Too much whitespace"');
+    expect(text).toContain('imageId="ss-1"');
+  });
+
+  it('can leave out computed styles', () => {
+    expect(renderSelectionsText([element], { includeStyles: false })).not.toContain('font-size');
+  });
+});
+
+describe('buildChatBody', () => {
+  const page = { url: 'https://example.com/pricing', title: 'Pricing' };
+
+  it('includes the reply address, text, page and captures', () => {
+    const body = buildChatBody({
+      text: '  What did I select?  ',
+      page,
+      selections: [
+        {
+          type: 'element',
+          id: 'el-1',
+          selector: 'h1',
+          tagName: 'h1',
+          dimensions: '300x60',
+          rect: { x: 0, y: 0, width: 300, height: 60 },
+          hint: 'hint',
+          note: 'Wrong font',
+        },
+      ],
+      replyTo: 'jake-panel',
+    });
+    expect(body).toContain('Reply with SendMessage to "jake-panel"');
+    expect(body).toContain('\n\nWhat did I select?\n\n');
+    expect(body).toContain('Page: Pricing — https://example.com/pricing');
+    expect(body).toContain('User note: "Wrong font"');
+  });
+
+  it('works with no page and no captures', () => {
+    const body = buildChatBody({ text: 'hi', selections: [], replyTo: 'jake-panel' });
+    expect(body.endsWith('\n\nhi')).toBe(true);
+  });
+
+  it('drops computed styles from oversized messages', () => {
+    const bigStyles = Object.fromEntries(
+      Array.from({ length: 4000 }, (_, i) => [`--custom-prop-${i}`, 'x'.repeat(20)])
+    );
+    const body = buildChatBody({
+      text: 'big one',
+      page,
+      selections: [
+        {
+          type: 'element',
+          id: 'el-1',
+          selector: 'div',
+          tagName: 'div',
+          dimensions: '1x1',
+          rect: { x: 0, y: 0, width: 1, height: 1 },
+          hint: 'hint',
+          note: 'keep me',
+          computedStyles: bigStyles,
+        },
+      ],
+      replyTo: 'jake-panel',
+    });
+    expect(body.length).toBeLessThan(CHAT_BODY_SOFT_LIMIT);
+    expect(body).not.toContain('--custom-prop-1');
+    expect(body).toContain('User note: "keep me"');
+    expect(body).toContain('call see_jakes_notes for full details');
   });
 });

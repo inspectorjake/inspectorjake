@@ -21,12 +21,22 @@ const mocks = vi.hoisted(() => ({
   stopStatusPolling: vi.fn(),
   toggleLogs: vi.fn(),
   clearLogs: vi.fn(),
+  chatSend: vi.fn(async () => true),
+  chatRefresh: vi.fn(async () => {}),
+  chatReset: vi.fn(),
+  chatMarkRead: vi.fn(),
+  chatHandleEntry: vi.fn(),
+  chatHandleBridgeInfo: vi.fn(),
 }));
 
 let runtimeListener: ((message: { type: string; [key: string]: unknown }) => unknown) | null = null;
 
 const panelStubs = {
-  ViewToggleBar: { template: '<div />' },
+  ViewToggleBar: {
+    props: ['modelValue', 'chatUnread'],
+    emits: ['update:modelValue'],
+    template: '<button class="view-chat" @click="$emit(\'update:modelValue\', \'chat\')" />',
+  },
   AppHeader: {
     props: [
       'isConnected',
@@ -69,6 +79,17 @@ const panelStubs = {
   WorkspaceLayout: {
     emits: ['update:computedStylesMode'],
     template: '<button class="mode-update" @click="$emit(\'update:computedStylesMode\', \'all\')">mode</button>',
+  },
+  ChatPanel: {
+    props: ['messages', 'bridgeInfo', 'draft', 'sending', 'error', 'captureCount', 'noteCount'],
+    emits: ['send', 'update:draft'],
+    template: `
+      <div class="chat-panel-stub">
+        <button class="chat-type" @click="$emit('update:draft', 'what is this?')" />
+        <button class="chat-send" @click="$emit('send')" />
+        <span class="chat-draft">{{ draft }}</span>
+      </div>
+    `,
   },
   SettingsPanel: { template: '<div />' },
 };
@@ -125,6 +146,19 @@ vi.mock('../composables/index.js', () => ({
     maxScreenshotDimension: ref(2000),
     autoClearSelectionsAfterSeen: ref(true),
     setComputedStylesMode: mocks.setComputedStylesMode,
+  }),
+  useChat: () => ({
+    messages: ref([]),
+    bridgeInfo: ref(null),
+    sending: ref(false),
+    error: ref<string | null>(null),
+    unread: ref(0),
+    refresh: mocks.chatRefresh,
+    send: mocks.chatSend,
+    handleEntry: mocks.chatHandleEntry,
+    handleBridgeInfo: mocks.chatHandleBridgeInfo,
+    markRead: mocks.chatMarkRead,
+    reset: mocks.chatReset,
   }),
   LogLevel: {
     INFO: 'INFO',
@@ -248,5 +282,82 @@ describe('Panel picker cancellation', () => {
     wrapper.unmount();
 
     expect(mocks.clearHighlight).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('Panel chat view', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.isPicking.value = false;
+    mocks.isConnected.value = true;
+    runtimeListener = null;
+
+    vi.stubGlobal('chrome', {
+      runtime: {
+        onMessage: {
+          addListener: vi.fn((listener: (message: { type: string; [key: string]: unknown }) => unknown) => {
+            runtimeListener = listener;
+          }),
+          removeListener: vi.fn(),
+        },
+      },
+    });
+  });
+
+  const mountPanel = () => shallowMount(Panel, { global: { stubs: panelStubs } });
+
+  it('shows the workspace by default and the chat after switching views', async () => {
+    const wrapper = mountPanel();
+    expect(wrapper.find('.mode-update').exists()).toBe(true);
+    expect(wrapper.find('.chat-panel-stub').exists()).toBe(false);
+
+    await wrapper.get('.view-chat').trigger('click');
+
+    expect(wrapper.find('.mode-update').exists()).toBe(false);
+    expect(wrapper.find('.chat-panel-stub').exists()).toBe(true);
+    expect(mocks.chatMarkRead).toHaveBeenCalled();
+  });
+
+  it('sends the draft and clears it once sent', async () => {
+    const wrapper = mountPanel();
+    await wrapper.get('.view-chat').trigger('click');
+    await wrapper.get('.chat-type').trigger('click');
+    expect(wrapper.get('.chat-draft').text()).toBe('what is this?');
+
+    await wrapper.get('.chat-send').trigger('click');
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(mocks.chatSend).toHaveBeenCalledWith('what is this?');
+    expect(wrapper.get('.chat-draft').text()).toBe('');
+  });
+
+  it('keeps the draft when sending fails', async () => {
+    mocks.chatSend.mockResolvedValueOnce(false);
+    const wrapper = mountPanel();
+    await wrapper.get('.view-chat').trigger('click');
+    await wrapper.get('.chat-type').trigger('click');
+    await wrapper.get('.chat-send').trigger('click');
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(wrapper.get('.chat-draft').text()).toBe('what is this?');
+  });
+
+  it('routes chat entries, counting them as unread unless the chat is open', async () => {
+    const wrapper = mountPanel();
+    const entry = { id: 'e1', role: 'claude', text: 'hi', ts: 1 };
+
+    await runtimeListener?.({ type: 'CHAT_ENTRY', sessionName: 'jake', entry });
+    expect(mocks.chatHandleEntry).toHaveBeenLastCalledWith({ sessionName: 'jake', entry }, false);
+
+    await wrapper.get('.view-chat').trigger('click');
+    await runtimeListener?.({ type: 'CHAT_ENTRY', sessionName: 'jake', entry });
+    expect(mocks.chatHandleEntry).toHaveBeenLastCalledWith({ sessionName: 'jake', entry }, true);
+  });
+
+  it('routes chat bridge info', async () => {
+    mountPanel();
+    const bridgeInfo = { available: true, name: 'jake-panel' };
+    await runtimeListener?.({ type: 'CHAT_BRIDGE_INFO', sessionName: 'jake', bridgeInfo });
+    expect(mocks.chatHandleBridgeInfo).toHaveBeenCalledWith({ bridgeInfo });
   });
 });

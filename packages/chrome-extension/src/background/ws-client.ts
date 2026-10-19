@@ -4,7 +4,14 @@
  * Includes keepalive alarm and heartbeat to prevent MV3 service worker termination.
  */
 
-import type { ToolRequest, ToolResponse, SessionName } from '@inspector-jake/shared';
+import type {
+  ToolRequest,
+  ToolResponse,
+  SessionName,
+  ChatAckMessage,
+  ChatSendMessage,
+  ChatServerMessage,
+} from '@inspector-jake/shared';
 import { handleToolRequest } from './tool-handlers.js';
 import { log } from '../utils/logger.js';
 
@@ -12,6 +19,32 @@ export const KEEPALIVE_ALARM_NAME = 'jake-ws-keepalive';
 const KEEPALIVE_INTERVAL_MINUTES = 0.4; // ~24 seconds (under 30s MV3 termination limit)
 const HEARTBEAT_INTERVAL_MS = 15000;    // 15 seconds
 const HEARTBEAT_TIMEOUT_MS = 10000;     // 10 seconds to receive pong
+const CHAT_ACK_TIMEOUT_MS = 10000;
+
+type ChatPush = Exclude<ChatServerMessage, ChatAckMessage>;
+type ChatListener = (message: ChatPush, sessionName: SessionName) => void;
+type ChatDisconnectListener = () => void;
+
+let chatListener: ChatListener | null = null;
+let chatDisconnectListener: ChatDisconnectListener | null = null;
+const pendingChatAcks = new Map<string, (ack: ChatAckMessage) => void>();
+
+/** Register handlers for chat pushes from the server (set once by background/index.ts). */
+export function setChatListeners(onMessage: ChatListener, onDisconnect: ChatDisconnectListener): void {
+  chatListener = onMessage;
+  chatDisconnectListener = onDisconnect;
+}
+
+function isChatServerMessage(message: any): message is ChatServerMessage {
+  return typeof message?.type === 'string' && message.type.startsWith('chat_');
+}
+
+function failPendingChats(error: string): void {
+  for (const [id, resolve] of pendingChatAcks) {
+    resolve({ type: 'chat_ack', id, ok: false, error });
+  }
+  pendingChatAcks.clear();
+}
 
 export interface WsClientInstance {
   disconnect: () => void;
@@ -189,6 +222,16 @@ export function connectToSession(
           return;
         }
 
+        // Chat traffic is not a tool request
+        if (isChatServerMessage(message)) {
+          if (message.type === 'chat_ack') {
+            pendingChatAcks.get(message.id)?.(message);
+          } else if (currentConnection) {
+            chatListener?.(message, currentConnection.sessionName);
+          }
+          return;
+        }
+
         const request = message as ToolRequest;
         log.debug('WS', `Tool request received: ${request.type}`);
 
@@ -213,6 +256,8 @@ export function connectToSession(
       currentConnection = null;
       stopHeartbeat();
       stopKeepaliveAlarm();
+      failPendingChats('Disconnected from the MCP server.');
+      chatDisconnectListener?.();
       // Notify popup/panel about disconnection
       chrome.runtime.sendMessage({ type: 'CONNECTION_CLOSED' }).catch(() => {
         // Popup/panel might be closed
@@ -238,6 +283,32 @@ export function getConnectionStatus(): {
     sessionName: currentConnection.sessionName,
     tabId: currentConnection.tabId,
   };
+}
+
+/**
+ * Send a chat message to the MCP server and wait for its ack.
+ * Always resolves; failures come back as `ok: false` with a reason.
+ */
+export function sendChat(message: ChatSendMessage): Promise<ChatAckMessage> {
+  return new Promise((resolve) => {
+    if (!currentConnection || currentConnection.ws.readyState !== WebSocket.OPEN) {
+      resolve({ type: 'chat_ack', id: message.id, ok: false, error: 'Not connected to an MCP session.' });
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      pendingChatAcks.delete(message.id);
+      resolve({ type: 'chat_ack', id: message.id, ok: false, error: 'The MCP server did not confirm the message.' });
+    }, CHAT_ACK_TIMEOUT_MS);
+
+    pendingChatAcks.set(message.id, (ack) => {
+      clearTimeout(timeout);
+      pendingChatAcks.delete(message.id);
+      resolve(ack);
+    });
+
+    currentConnection.ws.send(JSON.stringify(message));
+  });
 }
 
 /**
