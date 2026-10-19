@@ -60,118 +60,144 @@ function formatTime(ts: number): string {
 </script>
 
 <template>
-  <section class="flex-1 p-4 flex flex-col min-h-0 min-w-0" data-testid="chat-panel">
-    <div class="flex-1 border border-obsidian-600 rounded-lg bg-obsidian-700 flex flex-col min-h-0 overflow-hidden">
-      <!-- Header -->
-      <div class="px-3 py-1.5 border-b border-obsidian-600 flex items-center gap-2 bg-obsidian-800">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-400">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-        </svg>
-        <span class="text-[10px] font-bold text-gray-300 uppercase tracking-wider">Chat</span>
-        <span v-if="available" class="text-[10px] text-gray-500 font-mono truncate">
-          with <span class="text-purple-400">{{ peerName }}</span>
-        </span>
-        <span
-          v-if="available && bridgeInfo?.name"
-          class="ml-auto text-[9px] text-gray-500 bg-obsidian-600 px-1.5 py-0.5 rounded font-mono"
-          :title="`This panel's session name. Claude replies to ${bridgeInfo.name}.`"
-        >
-          {{ bridgeInfo.name }}
-        </span>
+  <section class="flex-1 flex flex-col min-h-0 min-w-0 bg-ios-bg" data-testid="chat-panel">
+    <div class="flex-1 w-full max-w-[880px] mx-auto px-4 flex flex-col min-h-0">
+      <!-- Contact header -->
+      <div class="flex flex-col items-center gap-1 pt-4 pb-2 shrink-0 text-center">
+        <div class="w-[44px] h-[44px] rounded-full bg-ios-fill-strong text-ios-label flex items-center justify-center" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="16" rx="3" />
+            <path d="m7 10 3 2-3 2" />
+            <path d="M12 15h5" />
+          </svg>
+        </div>
+        <h2 class="text-[15px] font-semibold text-ios-label">{{ available ? peerName : 'Chat' }}</h2>
+        <p v-if="available && bridgeInfo?.name" class="text-[12px] text-ios-label-secondary">
+          Claude Code session · replies to <span class="font-mono">{{ bridgeInfo.name }}</span>
+        </p>
       </div>
 
       <!-- Unavailable -->
       <div
         v-if="bridgeInfo && !available"
-        class="m-3 px-3 py-2 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs"
+        role="status"
+        class="mb-2 px-4 py-3 rounded-[14px] bg-ios-orange/15 text-ios-yellow text-[13px] flex items-start gap-2.5"
         data-testid="chat-unavailable"
       >
-        Chat unavailable: {{ bridgeInfo.reason ?? 'unknown reason' }}
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 mt-px" aria-hidden="true">
+          <path d="M12 3 2 20h20z" />
+          <path d="M12 10v4M12 17h.01" />
+        </svg>
+        <span>Chat unavailable: {{ bridgeInfo.reason ?? 'unknown reason' }}</span>
       </div>
 
       <!-- Messages -->
-      <div ref="listEl" class="flex-1 p-3 overflow-y-auto custom-scrollbar bg-obsidian-900/50 flex flex-col gap-2">
+      <div ref="listEl" role="log" aria-label="Conversation" class="flex-1 py-2 overflow-y-auto custom-scrollbar flex flex-col gap-1">
         <div
           v-if="messages.length === 0"
-          class="m-auto max-w-xs text-center flex flex-col items-center gap-2"
+          class="m-auto max-w-xs text-center flex flex-col items-center gap-1.5"
           data-testid="chat-empty"
         >
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-gray-600">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-ios-label-tertiary mb-1" aria-hidden="true">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
           </svg>
-          <p class="text-xs text-gray-500 font-mono">Ask {{ peerName }} about this page.</p>
-          <p class="text-[10px] text-gray-600">Your captures and their notes are sent with every message.</p>
+          <p class="text-[15px] font-semibold text-ios-label">Ask {{ peerName }} about this page.</p>
+          <p class="text-[13px] text-ios-label-secondary">Your captures and their notes are sent with every message.</p>
         </div>
 
         <template v-for="message in messages" :key="message.id">
           <!-- System notice -->
-          <div
+          <p
             v-if="message.role === 'system'"
-            class="self-center text-[10px] text-amber-300/80 font-mono"
+            class="self-center max-w-[460px] text-center text-[12px] text-ios-yellow my-2"
             data-testid="chat-message"
             data-role="system"
           >
             {{ message.text }}
-          </div>
+          </p>
 
           <!-- You / Claude -->
           <div
             v-else
-            class="max-w-[85%] flex flex-col gap-1"
+            class="max-w-[75%] flex flex-col gap-1 mt-1.5"
             :class="message.role === 'you' ? 'self-end items-end' : 'self-start items-start'"
             data-testid="chat-message"
             :data-role="message.role"
           >
-            <span v-if="message.role === 'claude'" class="text-[9px] font-bold uppercase tracking-wider text-purple-400">
+            <span v-if="message.role === 'claude'" class="text-[12px] text-ios-label-secondary pl-3.5">
               {{ message.fromName ?? peerName }}
             </span>
+
+            <!-- Attachment card for what was sent -->
+            <span
+              v-if="message.role === 'you' && message.attachments"
+              class="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-[14px] bg-ios-elevated shadow-[inset_0_0_0_0.5px_var(--color-ios-separator)] text-[12px] font-semibold text-ios-label"
+            >
+              <span class="w-[24px] h-[24px] rounded-[6px] bg-ios-fill text-ios-label-secondary flex items-center justify-center" aria-hidden="true">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="m9 18-6-6 6-6M15 6l6 6-6 6" />
+                </svg>
+              </span>
+              {{ message.attachments }} capture{{ message.attachments === 1 ? '' : 's' }}
+            </span>
+
             <div
-              class="px-3 py-2 rounded-lg text-xs whitespace-pre-wrap break-words"
+              class="px-3.5 py-2 text-[15px] leading-snug whitespace-pre-wrap break-words"
               :class="message.role === 'you'
-                ? 'bg-lime-accent/10 border border-lime-accent/20 text-gray-100'
-                : 'bg-purple-400/10 border border-purple-400/20 text-gray-200'"
+                ? 'bg-tint-fill text-on-tint rounded-[18px] rounded-br-[5px]'
+                : 'bg-ios-fill text-ios-label rounded-[18px] rounded-bl-[5px]'"
             >{{ message.text }}</div>
-            <span class="text-[9px] text-gray-600 font-mono">
+
+            <span class="text-[11px] text-ios-label-secondary tabular-nums px-1">
               {{ formatTime(message.ts) }}
-              <template v-if="message.role === 'you' && message.attachments">· {{ message.attachments }} capture{{ message.attachments === 1 ? '' : 's' }}</template>
-              <template v-if="message.status === 'sending'">· sending…</template>
-              <span v-else-if="message.status === 'failed'" class="text-red-400">· not sent{{ message.error ? `: ${message.error}` : '' }}</span>
+              <template v-if="message.status === 'sending'">· Sending…</template>
+              <span v-else-if="message.status === 'failed'" class="text-ios-red">· not sent{{ message.error ? `: ${message.error}` : '' }}</span>
             </span>
           </div>
         </template>
       </div>
 
       <!-- Composer -->
-      <div class="p-3 border-t border-obsidian-600 bg-obsidian-800 flex flex-col gap-2">
-        <textarea
-          :value="draft"
-          rows="3"
-          class="w-full resize-none bg-obsidian-900 border border-obsidian-600 rounded px-2 py-1.5 text-xs text-white placeholder-gray-600 focus:border-lime-accent/50 focus:outline-none transition-colors disabled:opacity-50"
-          :placeholder="available ? `Message ${peerName}… (⌘/Ctrl+Enter to send)` : 'Chat is unavailable'"
-          :disabled="!available"
-          data-testid="chat-input"
-          @input="emit('update:draft', ($event.target as HTMLTextAreaElement).value)"
-          @keydown="handleKeydown"
-        />
-        <div class="flex items-center gap-2">
+      <div class="shrink-0 pt-2 pb-4 flex flex-col gap-2">
+        <div class="flex flex-wrap items-center gap-2 px-1">
           <span
-            class="text-[10px] font-mono px-1.5 py-0.5 rounded"
-            :class="captureCount > 0 ? 'text-lime-accent bg-lime-accent/10' : 'text-gray-500 bg-obsidian-700'"
+            class="text-[12px] font-semibold px-2.5 h-[24px] leading-[24px] rounded-full"
+            :class="captureCount > 0 ? 'text-tint bg-tint/15' : 'text-ios-label-secondary bg-ios-elevated'"
             data-testid="chat-attachments"
-          >
-            {{ attachmentsLabel }}
-          </span>
-          <span v-if="error" class="text-[10px] text-red-300 truncate" :title="error" data-testid="chat-error">{{ error }}</span>
+          >{{ attachmentsLabel }}</span>
+          <span v-if="error" class="text-[12px] text-ios-red truncate" :title="error" data-testid="chat-error">{{ error }}</span>
+        </div>
+
+        <div
+          class="flex items-end gap-2 rounded-[20px] pl-4 pr-1 py-1 shadow-[inset_0_0_0_1px_var(--color-ios-fill-strong)] focus-within:shadow-[inset_0_0_0_1.5px_var(--color-tint)] transition-shadow"
+          :class="!available && 'opacity-50'"
+        >
+          <label for="chat-draft" class="sr-only">Message {{ peerName }}</label>
+          <textarea
+            id="chat-draft"
+            :value="draft"
+            rows="1"
+            class="flex-1 min-w-0 max-h-[140px] field-sizing-content resize-none bg-transparent py-1.5 text-[15px] leading-snug text-ios-label placeholder:text-ios-label-tertiary focus:outline-none focus-visible:outline-none disabled:cursor-not-allowed"
+            :placeholder="available ? `Message ${peerName} · ⌘/Ctrl+Enter to send` : 'Chat is unavailable'"
+            :disabled="!available"
+            data-testid="chat-input"
+            @input="emit('update:draft', ($event.target as HTMLTextAreaElement).value)"
+            @keydown="handleKeydown"
+          />
           <button
-            class="ml-auto flex items-center gap-1.5 px-3 py-1 rounded text-[10px] font-bold uppercase transition-all bg-lime-accent text-obsidian-900 hover:bg-lime-accent/90 disabled:opacity-40 disabled:hover:bg-lime-accent"
+            class="w-[32px] h-[32px] mb-px rounded-full flex items-center justify-center shrink-0 transition-colors"
+            :class="canSend ? 'bg-tint-fill text-on-tint' : 'bg-ios-fill-strong text-ios-label-tertiary'"
             :disabled="!canSend"
+            aria-label="Send"
             data-testid="chat-send"
             @click="submit"
           >
-            <svg v-if="sending" class="animate-spin" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+            <svg v-if="sending" class="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" aria-hidden="true">
               <path d="M21 12a9 9 0 1 1-6.219-8.56" />
             </svg>
-            Send
+            <svg v-else width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 19V5M5 12l7-7 7 7" />
+            </svg>
           </button>
         </div>
       </div>

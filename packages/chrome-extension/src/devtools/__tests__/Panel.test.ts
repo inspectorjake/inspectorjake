@@ -32,11 +32,6 @@ const mocks = vi.hoisted(() => ({
 let runtimeListener: ((message: { type: string; [key: string]: unknown }) => unknown) | null = null;
 
 const panelStubs = {
-  ViewToggleBar: {
-    props: ['modelValue', 'chatUnread'],
-    emits: ['update:modelValue'],
-    template: '<button class="view-chat" @click="$emit(\'update:modelValue\', \'chat\')" />',
-  },
   AppHeader: {
     props: [
       'isConnected',
@@ -47,8 +42,11 @@ const panelStubs = {
       'showLogs',
       'hasLogErrors',
       'showSettings',
+      'view',
+      'chatUnread',
     ],
-    template: '<div />',
+    emits: ['update:view'],
+    template: '<button class="view-chat" @click="$emit(\'update:view\', \'chat\')" />',
   },
   CapturesSidebar: {
     props: [

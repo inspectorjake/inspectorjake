@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
- * CaptureCard - Individual capture item for the sidebar list.
- * Displays element or screenshot selection with thumbnail, name, and metadata.
+ * CaptureCard - One capture as a row in the inset grouped captures list.
+ * Thumbnail, tag, selector, note and size; the remove button shows on hover.
  */
 
 import type { Selection } from '@inspector-jake/shared'
@@ -23,9 +23,9 @@ const emit = defineEmits<{
 /** Formatted display name based on selection type */
 const displayName = computed(() => {
   if (props.selection.type === 'element') {
-    return `#${props.index} <${props.selection.tagName}>`
+    return `<${props.selection.tagName}>`
   }
-  return `#${props.index} Screenshot`
+  return 'Region'
 })
 
 /** Formatted timestamp */
@@ -39,10 +39,17 @@ const formattedTime = computed(() => {
   })
 })
 
-/** Truncated selector for element selections */
-const truncatedSelector = computed(() => {
+/** Full selector for element selections */
+const fullSelector = computed(() => {
   if (props.selection.type !== 'element') return null
   return props.selection.selector
+})
+
+/** Last segment of the selector, the part that names the element */
+const truncatedSelector = computed(() => {
+  const selector = fullSelector.value
+  if (!selector) return null
+  return selector.split('>').pop()?.trim() || selector
 })
 
 /** Screenshot unavailable reason (element selections only) */
@@ -51,11 +58,11 @@ const screenshotUnavailableReason = computed(() => {
   return props.selection.screenshotUnavailableReason ?? null
 })
 
-/** Truncated note preview for the card */
+/** Note preview for the row */
 const notePreview = computed(() => {
   const note = props.selection.note
   if (!note) return null
-  return note.length > 30 ? note.slice(0, 30) + '...' : note
+  return note.length > 40 ? note.slice(0, 40) + '…' : note
 })
 
 /** Check if element is in an iframe */
@@ -63,105 +70,79 @@ const isInIframe = computed(() => {
   if (props.selection.type !== 'element') return false
   return props.selection.frameId !== undefined
 })
+
+/** Rendered size, e.g. 120×40 */
+const sizeLabel = computed(() => {
+  const { width, height } = props.selection.rect
+  return `${Math.round(width)}×${Math.round(height)}`
+})
 </script>
 
 <template>
   <div
-    class="group relative p-3 rounded-md border cursor-pointer transition-all duration-200"
-    :class="[
-      isActive
-        ? 'bg-obsidian-800 border-lime-accent/40 shadow-lg shadow-black/20'
-        : 'bg-transparent border-obsidian-700 hover:border-obsidian-500 hover:bg-obsidian-800/50'
-    ]"
+    role="button"
+    tabindex="0"
+    :aria-pressed="isActive"
+    :aria-label="`Capture ${index}: ${displayName}`"
+    class="group relative flex items-center gap-3 pl-4 pr-3 py-2.5 min-h-[60px] cursor-pointer transition-colors
+           after:absolute after:left-[68px] after:right-0 after:bottom-0 after:h-px after:bg-ios-separator last:after:hidden"
+    :class="isActive ? 'bg-tint/20' : 'hover:bg-white/[0.04]'"
+    :title="`#${index} · captured ${formattedTime}`"
     @mouseenter="emit('hover-start')"
     @mouseleave="emit('hover-end')"
     @click="emit('select')"
+    @keydown.enter.prevent="emit('select')"
+    @keydown.space.prevent="emit('select')"
   >
-    <!-- Active left bar -->
-    <div
-      v-if="isActive"
-      class="absolute left-0 top-0 bottom-0 w-0.5 bg-lime-accent rounded-l-md shadow-[0_0_8px_rgba(190,242,100,0.5)]"
-    ></div>
+    <!-- Thumbnail -->
+    <div class="w-[40px] h-[40px] rounded-[9px] bg-ios-fill flex items-center justify-center shrink-0 overflow-hidden">
+      <img
+        v-if="selection.image"
+        :src="selection.image"
+        class="w-full h-full object-cover"
+        :alt="displayName"
+      />
+      <span
+        v-else-if="screenshotUnavailableReason"
+        class="text-[9px] text-ios-label-secondary text-center leading-tight px-0.5"
+        :title="screenshotUnavailableReason"
+      >No preview</span>
+      <svg v-else width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" class="text-ios-label-tertiary" aria-hidden="true">
+        <path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3" />
+      </svg>
+    </div>
 
-    <!-- Delete button -->
+    <!-- Text -->
+    <div class="flex-1 min-w-0 flex flex-col gap-px">
+      <span class="text-[15px] font-semibold text-ios-label truncate">
+        {{ displayName }}
+        <span v-if="isInIframe" class="ml-1 align-middle text-[11px] font-semibold text-ios-orange bg-ios-orange/15 px-1.5 py-px rounded-[5px]">iframe</span>
+      </span>
+      <span
+        v-if="truncatedSelector"
+        class="text-[12px] font-mono text-ios-label-secondary truncate"
+        :title="fullSelector ?? undefined"
+      >{{ truncatedSelector }}</span>
+      <span v-if="notePreview" class="text-[13px] text-ios-yellow truncate" :title="selection.note">“{{ notePreview }}”</span>
+    </div>
+
+    <!-- Size + remove -->
+    <span class="text-[12px] text-ios-label-secondary tabular-nums shrink-0 group-hover:hidden group-focus-within:hidden">{{ sizeLabel }}</span>
     <button
-      class="absolute top-2 right-2 p-1 text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-obsidian-900 rounded"
+      class="hidden group-hover:flex group-focus-within:flex w-[28px] h-[28px] rounded-full items-center justify-center bg-ios-fill text-ios-label-secondary hover:bg-ios-red/20 hover:text-ios-red shrink-0 transition-colors"
       title="Remove selection"
+      aria-label="Remove capture"
       @click.stop="emit('delete')"
+      @keydown.enter.stop
+      @keydown.space.stop
     >
-      <svg
-        width="12"
-        height="12"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="2.5"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      >
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <line x1="18" y1="6" x2="6" y2="18" />
         <line x1="6" y1="6" x2="18" y2="18" />
       </svg>
     </button>
-
-    <!-- Name row -->
-    <div class="flex justify-between items-start mb-1.5 pl-1 pr-6">
-      <span
-        class="font-mono text-xs group-hover:text-lime-accent transition-colors"
-        :class="[
-          isActive ? 'font-bold text-white' : 'font-medium text-gray-300'
-        ]"
-      >
-        {{ displayName }}
-      </span>
-    </div>
-
-    <!-- Detail row -->
-    <div class="flex gap-3 mt-2 pl-1">
-      <!-- Thumbnail -->
-      <div
-        class="w-10 h-10 rounded border flex items-center justify-center shrink-0 overflow-hidden"
-        :class="[
-          isActive
-            ? 'bg-black border-obsidian-600'
-            : 'bg-black/40 border-obsidian-600'
-        ]"
-      >
-        <img
-          v-if="selection.image"
-          :src="selection.image"
-          class="w-full h-full object-cover"
-          :alt="displayName"
-        />
-        <span
-          v-else-if="screenshotUnavailableReason"
-          class="text-[8px] text-gray-500 font-mono text-center leading-tight px-0.5"
-          :title="screenshotUnavailableReason"
-        >No preview</span>
-        <span v-else class="text-[9px] text-gray-600 font-mono">IMG</span>
-      </div>
-
-      <!-- Info -->
-      <div class="flex flex-col justify-center gap-0.5 min-w-0">
-        <span
-          v-if="selection.type === 'element' && truncatedSelector"
-          class="text-[10px] text-gray-300 truncate font-medium"
-          :title="truncatedSelector"
-        >
-          <span v-if="isInIframe" class="text-amber-400 mr-1">[iframe]</span>{{ truncatedSelector }}
-        </span>
-        <span class="text-[10px] text-gray-500 font-mono">
-          {{ formattedTime }}
-        </span>
-      </div>
-    </div>
-
-    <!-- Note indicator -->
-    <div v-if="notePreview" class="mt-1.5 pl-1 flex items-center gap-1 min-w-0">
-      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0 text-gray-600">
-        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-      </svg>
-      <span class="text-[9px] text-gray-500 italic truncate" :title="selection.note">{{ notePreview }}</span>
-    </div>
+    <svg width="8" height="14" viewBox="0 0 8 14" fill="none" stroke="#5a5a5f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="shrink-0" aria-hidden="true">
+      <path d="m1 1 6 6-6 6" />
+    </svg>
   </div>
 </template>

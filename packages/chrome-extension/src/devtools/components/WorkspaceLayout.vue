@@ -59,8 +59,8 @@ function onNoteInput(event: Event) {
 </script>
 
 <template>
-  <main class="flex-1 flex flex-col bg-obsidian-900 min-w-0 overflow-hidden">
-    <!-- Breadcrumb bar -->
+  <main class="flex-1 flex flex-col bg-ios-bg min-w-0 overflow-hidden">
+    <!-- Large-title header -->
     <SelectorBreadcrumb
       v-if="expandedSelection"
       :selector="isElement(expandedSelection) ? expandedSelection.selector : null"
@@ -82,24 +82,22 @@ function onNoteInput(event: Event) {
 
       <!-- Right column: Note + Inspector + Logs -->
       <div class="flex flex-col gap-3 overflow-hidden min-h-0">
-        <!-- Note editor — light "notepad" card -->
-        <div v-if="expandedSelection" class="shrink-0 relative overflow-hidden rounded-lg bg-[#faf8f0] border border-[#e8e4d4] shadow-[0_1px_3px_rgba(0,0,0,0.25)]">
-          <div class="px-3 pt-2.5 pb-0.5 border-b border-[#ede9d9]">
-            <label class="block text-[11px] font-bold text-[#5a5647] uppercase tracking-widest">Jake's notes</label>
+        <!-- Note editor: iOS grouped text field -->
+        <div v-if="expandedSelection" class="shrink-0 flex flex-col gap-1.5">
+          <label for="capture-note" class="pl-4 text-[13px] text-ios-label-secondary uppercase tracking-[0.2px]">Jake's notes</label>
+          <textarea
+            id="capture-note"
+            :value="noteText"
+            @input="onNoteInput"
+            rows="2"
+            maxlength="500"
+            placeholder="What should change here? e.g. “center this vertically”"
+            class="w-full rounded-[14px] bg-ios-elevated px-4 py-3 text-[15px] leading-snug text-ios-label placeholder:text-ios-label-tertiary resize-none focus:outline-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tint/60"
+          />
+          <div class="flex justify-between px-4 text-[12px] text-ios-label-secondary">
+            <span>Sent to Claude with this capture.</span>
+            <span class="tabular-nums">{{ noteText.length }}/500</span>
           </div>
-          <div class="relative px-3 pt-1.5 pb-2">
-            <textarea
-              :value="noteText"
-              @input="onNoteInput"
-              rows="2"
-              maxlength="500"
-              placeholder="Add a note for the LLM... e.g. 'I want this vertically centered'"
-              class="w-full bg-transparent border-none text-sm text-[#2a2520] font-mono placeholder:text-[#b0a890] resize-none focus:outline-none transition-colors"
-            />
-            <span class="absolute bottom-2 right-3 text-[11px] text-[#b0a890] font-mono">{{ noteText.length }}/500</span>
-          </div>
-          <!-- Pencil-notepad watermark -->
-          <img src="/assets/jake-notes-deco.svg" alt="" class="absolute bottom-1 right-1 w-10 h-10 opacity-[0.08] pointer-events-none select-none" />
         </div>
 
         <InspectorPanel

@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
-import type { ChatEntry } from '@inspector-jake/shared';
+import type { ChatBridgeInfo, ChatEntry } from '@inspector-jake/shared';
 import ChatPanel from '../ChatPanel.vue';
 
 const baseProps = {
   messages: [] as ChatEntry[],
-  bridgeInfo: { available: true, name: 'jake-panel', parentName: 'inspector-jake-de' },
+  bridgeInfo: { available: true, name: 'jake-panel', parentName: 'inspector-jake-de' } as ChatBridgeInfo | null,
   draft: '',
   sending: false,
   error: null as string | null,

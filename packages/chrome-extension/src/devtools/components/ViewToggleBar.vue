@@ -4,7 +4,7 @@ export type ViewMode = 'preview' | 'chat'
 
 <script setup lang="ts">
 /**
- * ViewToggleBar - Top bar with Preview/Chat view toggle and utility icons.
+ * ViewToggleBar - iOS segmented control switching between the Inspect and Chat views.
  */
 defineProps<{
   modelValue: ViewMode
@@ -18,72 +18,38 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="h-8 border-b border-obsidian-700 bg-obsidian-950 flex items-center justify-between px-4 shrink-0">
-    <!-- Left: View toggle -->
-    <div class="flex items-center gap-1">
-      <button
-        class="flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition-colors"
-        :class="modelValue === 'preview'
-          ? 'text-white bg-obsidian-800'
-          : 'text-gray-500 hover:text-gray-300'"
-        data-testid="view-preview"
-        @click="emit('update:modelValue', 'preview')"
+  <div role="tablist" aria-label="View" class="flex p-[2px] rounded-[9px] bg-[rgba(118,118,128,0.24)] shrink-0">
+    <button
+      role="tab"
+      :aria-selected="modelValue === 'preview'"
+      class="min-w-[88px] h-[32px] px-4 rounded-[7px] text-[13px] text-ios-label transition-colors"
+      :class="modelValue === 'preview'
+        ? 'bg-ios-segment font-semibold shadow-[0_3px_8px_rgba(0,0,0,0.12)]'
+        : 'font-medium hover:bg-white/5'"
+      data-testid="view-preview"
+      @click="emit('update:modelValue', 'preview')"
+    >
+      Inspect
+    </button>
+    <button
+      role="tab"
+      :aria-selected="modelValue === 'chat'"
+      class="min-w-[88px] h-[32px] px-4 rounded-[7px] text-[13px] text-ios-label transition-colors flex items-center justify-center gap-1.5"
+      :class="modelValue === 'chat'
+        ? 'bg-ios-segment font-semibold shadow-[0_3px_8px_rgba(0,0,0,0.12)]'
+        : 'font-medium hover:bg-white/5'"
+      data-testid="view-chat"
+      @click="emit('update:modelValue', 'chat')"
+    >
+      Chat
+      <span
+        v-if="modelValue !== 'chat' && chatUnread"
+        class="min-w-[18px] h-[18px] px-[5px] rounded-full bg-ios-red text-white text-[11px] font-bold leading-[18px] text-center"
+        :aria-label="`${chatUnread} unread`"
+        data-testid="chat-unread"
       >
-        <span
-          v-if="modelValue === 'preview'"
-          class="w-1.5 h-1.5 rounded-full bg-lime-accent"
-        />
-        Preview
-      </button>
-      <button
-        class="flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition-colors"
-        :class="modelValue === 'chat'
-          ? 'text-white bg-obsidian-800'
-          : 'text-gray-500 hover:text-gray-300'"
-        data-testid="view-chat"
-        @click="emit('update:modelValue', 'chat')"
-      >
-        <span
-          v-if="modelValue === 'chat'"
-          class="w-1.5 h-1.5 rounded-full bg-lime-accent"
-        />
-        Chat
-        <span
-          v-if="modelValue !== 'chat' && chatUnread"
-          class="min-w-4 h-4 px-1 rounded-full bg-lime-accent text-obsidian-900 text-[9px] font-bold leading-4 text-center animate-pulse"
-          data-testid="chat-unread"
-        >
-          {{ chatUnread }}
-        </span>
-      </button>
-    </div>
-
-    <!-- Right: Utility icons -->
-    <div class="flex items-center gap-2">
-      <!-- Monitor icon -->
-      <button class="p-1 text-gray-500 hover:text-white transition-colors rounded hover:bg-obsidian-800" title="Preview mode">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <rect width="20" height="14" x="2" y="3" rx="2" />
-          <line x1="8" x2="16" y1="21" y2="21" />
-          <line x1="12" x2="12" y1="17" y2="21" />
-        </svg>
-      </button>
-      <!-- Code brackets icon -->
-      <button class="p-1 text-gray-500 hover:text-white transition-colors rounded hover:bg-obsidian-800" title="Code view">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="16 18 22 12 16 6" />
-          <polyline points="8 6 2 12 8 18" />
-        </svg>
-      </button>
-      <!-- Fullscreen icon -->
-      <button class="p-1 text-gray-500 hover:text-white transition-colors rounded hover:bg-obsidian-800" title="Fullscreen">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M8 3H5a2 2 0 0 0-2 2v3" />
-          <path d="M21 8V5a2 2 0 0 0-2-2h-3" />
-          <path d="M3 16v3a2 2 0 0 0 2 2h3" />
-          <path d="M16 21h3a2 2 0 0 0 2-2v-3" />
-        </svg>
-      </button>
-    </div>
+        {{ chatUnread }}
+      </span>
+    </button>
   </div>
 </template>

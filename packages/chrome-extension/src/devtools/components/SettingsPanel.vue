@@ -1,12 +1,12 @@
 <script setup lang="ts">
 /**
- * SettingsPanel - Slide-out configuration panel for Inspector Jake.
- * Industrial/utilitarian control panel aesthetic with auto-save.
+ * SettingsPanel - iOS-style settings sheet that slides in from the right.
+ * Inset grouped sections; every change saves automatically.
  */
 
 import { ref, watch } from 'vue';
 import { ComputedStylesMode } from '@inspector-jake/shared';
-import { useSettings } from '../composables/index.js';
+import { useSettings, ACCENTS, type AccentName } from '../composables/index.js';
 
 defineProps<{
   open: boolean
@@ -21,6 +21,7 @@ const {
   computedStylesMode,
   maxScreenshotDimension,
   autoClearSelectionsAfterSeen,
+  accent,
   setComputedStylesMode,
 } = useSettings();
 
@@ -57,15 +58,22 @@ function onAutoClearInput(e: Event): void {
 
 // --- Computed Styles Mode ---
 const STYLE_MODES = [
-  { value: ComputedStylesMode.NONE, label: 'NONE', description: 'Skip computed styles for token savings' },
-  { value: ComputedStylesMode.LEAN, label: 'LEAN', description: 'Layout + visual essentials' },
-  { value: ComputedStylesMode.NON_DEFAULT, label: 'NON-DEFAULT', description: 'Changed from browser defaults' },
-  { value: ComputedStylesMode.ALL, label: 'ALL', description: 'Every computed property' },
+  { value: ComputedStylesMode.NONE, label: 'None', description: 'Skip computed styles to save tokens' },
+  { value: ComputedStylesMode.LEAN, label: 'Lean', description: 'Layout and visual essentials' },
+  { value: ComputedStylesMode.NON_DEFAULT, label: 'Non-Default', description: 'Only what differs from browser defaults' },
+  { value: ComputedStylesMode.ALL, label: 'All', description: 'Every computed property' },
 ] as const;
 
 async function selectStyleMode(mode: ComputedStylesMode): Promise<void> {
   await setComputedStylesMode(mode);
   emit('mode-changed');
+}
+
+// --- Accent ---
+const ACCENT_OPTIONS = Object.entries(ACCENTS) as Array<[AccentName, (typeof ACCENTS)[AccentName]]>;
+
+function selectAccent(name: AccentName): void {
+  accent.value = name;
 }
 
 function onKeydown(e: KeyboardEvent): void {
@@ -78,7 +86,7 @@ function onKeydown(e: KeyboardEvent): void {
   <div
     v-if="open"
     data-testid="settings-backdrop"
-    class="absolute inset-0 z-40"
+    class="absolute inset-0 z-40 bg-black/40"
     @click="emit('close')"
   />
 
@@ -86,183 +94,140 @@ function onKeydown(e: KeyboardEvent): void {
     <div
       v-if="open"
       data-testid="settings-panel"
-      class="absolute top-0 right-0 z-50 h-full w-80 flex flex-col
-             bg-obsidian-900 border-l border-obsidian-600
-             shadow-[-4px_0_20px_rgba(0,0,0,0.5)]"
+      class="absolute top-0 right-0 z-50 h-full w-80 max-w-full flex flex-col bg-ios-bg shadow-[-8px_0_30px_rgba(0,0,0,0.6)]"
+      role="dialog"
+      aria-label="Configuration"
       tabindex="-1"
       @keydown="onKeydown"
     >
-      <!-- Header -->
-      <div class="px-4 py-3 border-b border-obsidian-600 bg-obsidian-950 flex items-center justify-between shrink-0">
-        <div class="flex items-center gap-2">
-          <div class="w-1 h-4 bg-lime-accent rounded-full" />
-          <span class="text-[11px] text-gray-300 uppercase tracking-[0.2em] font-bold">
-            Configuration
-          </span>
-        </div>
+      <!-- Navigation bar -->
+      <div class="ios-material border-b border-ios-separator min-h-[52px] px-2 flex items-center justify-between shrink-0">
+        <span class="w-[64px]" aria-hidden="true" />
+        <h2 class="text-[17px] font-semibold text-ios-label">Configuration</h2>
         <button
-          class="w-6 h-6 rounded flex items-center justify-center
-                 text-gray-500 hover:text-white hover:bg-obsidian-700
-                 transition-colors"
+          class="w-[64px] min-h-[44px] text-[17px] font-semibold text-tint hover:opacity-80 text-right pr-2"
           title="Close settings"
           @click="emit('close')"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-               stroke="currentColor" stroke-width="2"
-               stroke-linecap="round" stroke-linejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
+          Done
         </button>
       </div>
 
       <!-- Scrollable content -->
-      <div class="flex-1 overflow-y-auto custom-scrollbar">
+      <div class="flex-1 overflow-y-auto custom-scrollbar px-4 py-5 flex flex-col gap-7">
 
-        <!-- Section 1: Computed Styles Mode -->
-        <div class="p-4">
-          <div class="flex items-center gap-2 mb-3">
-            <span class="text-[9px] text-gray-500 uppercase tracking-[0.15em] font-bold whitespace-nowrap">
-              Computed Styles
-            </span>
-            <div class="flex-1 h-px bg-obsidian-600" />
-          </div>
-
-          <div class="space-y-1.5">
+        <!-- Computed Styles -->
+        <section class="flex flex-col gap-1.5">
+          <h3 class="pl-4 text-[13px] text-ios-label-secondary uppercase tracking-[0.2px]">Computed Styles</h3>
+          <div class="rounded-[14px] bg-ios-elevated overflow-hidden">
             <button
               v-for="mode in STYLE_MODES"
               :key="mode.value"
               :data-testid="`mode-${mode.value}`"
-              class="w-full flex items-center gap-3 px-3 py-2.5 rounded-md
-                     border transition-all duration-150"
-              :class="computedStylesMode === mode.value
-                ? 'bg-obsidian-800 border-lime-accent/40 shadow-[inset_0_0_12px_rgba(190,242,100,0.04)]'
-                : 'bg-transparent border-obsidian-700 hover:border-obsidian-500 hover:bg-obsidian-800/30'"
+              :aria-pressed="computedStylesMode === mode.value"
+              class="relative w-full flex items-center gap-3 pl-4 pr-3 min-h-[56px] text-left hover:bg-white/[0.04]
+                     after:absolute after:left-4 after:right-0 after:bottom-0 after:h-px after:bg-ios-separator last:after:hidden"
               @click="selectStyleMode(mode.value)"
             >
-              <!-- Radio indicator -->
-              <div
-                class="w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors"
-                :class="computedStylesMode === mode.value
-                  ? 'border-lime-accent'
-                  : 'border-gray-600'"
+              <span class="flex-1 min-w-0 flex flex-col">
+                <span class="text-[15px] text-ios-label">{{ mode.label }}</span>
+                <span class="text-[12px] text-ios-label-secondary">{{ mode.description }}</span>
+              </span>
+              <svg
+                v-if="computedStylesMode === mode.value"
+                width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+                stroke-linecap="round" stroke-linejoin="round" class="text-tint shrink-0" aria-hidden="true"
               >
-                <div
-                  v-if="computedStylesMode === mode.value"
-                  class="w-1.5 h-1.5 rounded-full bg-lime-accent"
-                />
-              </div>
-              <!-- Label + description -->
-              <div class="flex flex-col items-start gap-0.5">
-                <span
-                  class="text-[11px] font-bold font-mono tracking-wide"
-                  :class="computedStylesMode === mode.value ? 'text-lime-accent' : 'text-gray-300'"
-                >
-                  {{ mode.label }}
-                </span>
-                <span class="text-[9px] text-gray-500 leading-tight">
-                  {{ mode.description }}
-                </span>
-              </div>
+                <path d="m5 12 5 5L20 7" />
+              </svg>
             </button>
           </div>
-        </div>
+          <p class="px-4 text-[12px] text-ios-label-secondary">How much CSS goes to Claude with each element capture.</p>
+        </section>
 
-        <!-- Divider -->
-        <div class="mx-4 h-px bg-obsidian-600" />
-
-        <!-- Section 2: Screenshot Dimension -->
-        <div class="p-4">
-          <div class="flex items-center gap-2 mb-3">
-            <span class="text-[9px] text-gray-500 uppercase tracking-[0.15em] font-bold whitespace-nowrap">
-              Screenshot Capture
-            </span>
-            <div class="flex-1 h-px bg-obsidian-600" />
+        <!-- Accent -->
+        <section class="flex flex-col gap-1.5">
+          <h3 class="pl-4 text-[13px] text-ios-label-secondary uppercase tracking-[0.2px]">Accent</h3>
+          <div class="rounded-[14px] bg-ios-elevated px-4 min-h-[56px] flex items-center justify-between gap-2">
+            <button
+              v-for="[name, option] in ACCENT_OPTIONS"
+              :key="name"
+              :data-testid="`accent-${name}`"
+              :aria-pressed="accent === name"
+              :aria-label="option.label"
+              :title="option.label"
+              class="w-[44px] h-[44px] rounded-full flex items-center justify-center"
+              @click="selectAccent(name)"
+            >
+              <span
+                class="w-[28px] h-[28px] rounded-full transition-shadow"
+                :class="accent === name && 'ring-2 ring-offset-2 ring-offset-ios-elevated ring-white'"
+                :style="{ background: option.tint }"
+              />
+            </button>
           </div>
+        </section>
 
-          <label class="block text-[10px] text-gray-400 uppercase tracking-wider mb-2">
-            Max Dimension
-          </label>
-
-          <!-- Value display -->
-          <div class="flex items-baseline gap-1 mb-3">
-            <input
-              type="number"
-              :value="draftDimension"
-              min="200"
-              max="2000"
-              step="100"
-              class="w-20 bg-obsidian-800 border border-obsidian-600 rounded px-2 py-1
-                     text-right text-sm font-mono font-bold text-white
-                     focus:border-lime-accent/50 focus:outline-none transition-colors
-                     [appearance:textfield]
-                     [&::-webkit-outer-spin-button]:appearance-none
-                     [&::-webkit-inner-spin-button]:appearance-none"
-              @input="onNumberInput"
-            />
-            <span class="text-[10px] text-gray-500 font-mono">px</span>
-          </div>
-
-          <!-- Range slider -->
-          <div class="relative">
-            <input
-              type="range"
-              :value="draftDimension"
-              min="200"
-              max="2000"
-              step="100"
-              class="settings-range-slider w-full"
-              @input="onSliderInput"
-            />
-            <div class="flex justify-between mt-1">
-              <span class="text-[8px] text-gray-600 font-mono">200</span>
-              <span class="text-[8px] text-gray-600 font-mono">2000</span>
+        <!-- Screenshot Capture -->
+        <section class="flex flex-col gap-1.5">
+          <h3 class="pl-4 text-[13px] text-ios-label-secondary uppercase tracking-[0.2px]">Screenshot Capture</h3>
+          <div class="rounded-[14px] bg-ios-elevated overflow-hidden">
+            <label class="relative flex items-center justify-between gap-3 px-4 min-h-[44px] after:absolute after:left-4 after:right-0 after:bottom-0 after:h-px after:bg-ios-separator">
+              <span class="text-[15px] text-ios-label">Max dimension</span>
+              <span class="flex items-baseline gap-1">
+                <input
+                  type="number"
+                  :value="draftDimension"
+                  min="200"
+                  max="2000"
+                  step="100"
+                  class="w-16 bg-transparent text-right text-[15px] text-ios-label-secondary tabular-nums focus:outline-none focus:text-ios-label
+                         [appearance:textfield]
+                         [&::-webkit-outer-spin-button]:appearance-none
+                         [&::-webkit-inner-spin-button]:appearance-none"
+                  @input="onNumberInput"
+                />
+                <span class="text-[15px] text-ios-label-secondary">px</span>
+              </span>
+            </label>
+            <div class="px-4 py-3 flex items-center gap-3">
+              <span class="text-[12px] text-ios-label-secondary tabular-nums">200</span>
+              <input
+                type="range"
+                :value="draftDimension"
+                min="200"
+                max="2000"
+                step="100"
+                aria-label="Max screenshot dimension"
+                class="settings-range-slider flex-1"
+                @input="onSliderInput"
+              />
+              <span class="text-[12px] text-ios-label-secondary tabular-nums">2000</span>
             </div>
           </div>
+          <p class="px-4 text-[12px] text-ios-label-secondary">Larger screenshots are scaled down to fit.</p>
+        </section>
 
-          <p class="text-[9px] text-gray-600 mt-2 leading-relaxed">
-            Screenshots exceeding this limit are downscaled proportionally.
-          </p>
-        </div>
-
-        <!-- Divider -->
-        <div class="mx-4 h-px bg-obsidian-600" />
-
-        <!-- Section 3: Selections behavior -->
-        <div class="p-4">
-          <div class="flex items-center gap-2 mb-3">
-            <span class="text-[9px] text-gray-500 uppercase tracking-[0.15em] font-bold whitespace-nowrap">
-              Selections
-            </span>
-            <div class="flex-1 h-px bg-obsidian-600" />
-          </div>
-
-          <label
-            class="flex items-start gap-2.5 p-2 rounded border border-obsidian-700 hover:border-obsidian-500 cursor-pointer transition-colors"
-          >
+        <!-- Selections -->
+        <section class="flex flex-col gap-1.5">
+          <h3 class="pl-4 text-[13px] text-ios-label-secondary uppercase tracking-[0.2px]">Selections</h3>
+          <label class="rounded-[14px] bg-ios-elevated px-4 min-h-[52px] py-2 flex items-center justify-between gap-3 cursor-pointer">
+            <span class="text-[15px] text-ios-label">Clear after Claude sees them</span>
             <input
               data-testid="auto-clear-selections"
               type="checkbox"
+              role="switch"
               :checked="autoClearSelectionsAfterSeen"
-              class="mt-0.5 accent-lime-accent"
+              class="ios-switch"
               @input="onAutoClearInput"
             />
-            <div>
-              <div class="text-[10px] text-gray-300 uppercase tracking-wider font-bold">
-                Auto-clear selections after agent has seen them
-              </div>
-              <p class="text-[9px] text-gray-600 mt-1 leading-relaxed">
-                Clears current captures right after <code class="font-mono text-gray-500">see_jakes_notes</code> is called.
-              </p>
-            </div>
           </label>
-        </div>
+          <p class="px-4 text-[12px] text-ios-label-secondary">
+            Clears your captures right after <code class="font-mono">see_jakes_notes</code> is called.
+          </p>
+        </section>
 
-      </div>
-
-      <!-- Footer -->
-      <div class="px-4 py-2 border-t border-obsidian-600 bg-obsidian-950 shrink-0">
-        <span class="text-[9px] text-gray-600 font-mono">Inspector Jake v1.0</span>
+        <p class="text-center text-[12px] text-ios-label-secondary">Inspector Jake v1.0</p>
       </div>
     </div>
   </Transition>

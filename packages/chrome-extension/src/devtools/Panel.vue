@@ -19,7 +19,7 @@ import {
   type DiscoveredSession,
 } from './composables/index.js';
 
-import ViewToggleBar, { type ViewMode } from './components/ViewToggleBar.vue';
+import type { ViewMode } from './components/ViewToggleBar.vue';
 import AppHeader from './components/AppHeader.vue';
 import CapturesSidebar from './components/CapturesSidebar.vue';
 import WorkspaceLayout from './components/WorkspaceLayout.vue';
@@ -287,11 +287,8 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="relative h-full flex flex-col overflow-hidden bg-obsidian-900 text-gray-300 font-display antialiased" @click="handlePanelClick">
-    <!-- View toggle bar -->
-    <ViewToggleBar v-model="activeView" :chat-unread="chatUnread" />
-
-    <!-- Header -->
+  <div class="relative h-full flex flex-col overflow-hidden bg-ios-bg text-ios-label font-display antialiased" @click="handlePanelClick">
+    <!-- Top bar -->
     <AppHeader
       :is-connected="isConnected"
       :session-name="connectedSessionName"
@@ -301,15 +298,18 @@ onUnmounted(() => {
       :show-logs="showLogs"
       :has-log-errors="hasLogErrors"
       :show-settings="showSettings"
+      :view="activeView"
+      :chat-unread="chatUnread"
       @toggle-picker="handlePickerClick"
       @toggle-logs="toggleLogs"
       @toggle-settings="toggleSettings"
       @disconnect="disconnect"
+      @update:view="activeView = $event"
     />
 
     <!-- Error banner -->
-    <div v-if="error" class="mx-3 mt-2 flex items-center gap-2 px-3 py-2 rounded-md bg-red-500/10 border border-red-500/20 text-red-300 text-xs">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="shrink-0">
+    <div v-if="error" role="alert" class="mx-3 mt-3 flex items-center gap-2.5 px-4 py-2.5 rounded-[14px] bg-ios-red/15 text-ios-red text-[13px]">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="shrink-0" aria-hidden="true">
         <circle cx="12" cy="12" r="10" />
         <line x1="12" y1="8" x2="12" y2="12" />
         <line x1="12" y1="16" x2="12.01" y2="16" />
@@ -364,6 +364,19 @@ onUnmounted(() => {
         :note-count="noteCount"
         @send="handleChatSend"
       />
+
+      <!-- Not connected -->
+      <div v-else class="flex-1 hidden sm:flex items-center justify-center p-8">
+        <div class="max-w-[320px] flex flex-col items-center text-center gap-2">
+          <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" class="text-ios-label-tertiary mb-1" aria-hidden="true">
+            <rect x="3" y="4" width="18" height="16" rx="3" />
+            <path d="m7 10 3 2-3 2" />
+            <path d="M12 15h5" />
+          </svg>
+          <p class="text-[17px] font-semibold text-ios-label">Not connected</p>
+          <p class="text-[13px] text-ios-label-secondary">Connect to a Claude Code session from the list to start inspecting and chatting.</p>
+        </div>
+      </div>
     </div>
 
     <!-- Settings panel (slides from right) -->
