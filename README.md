@@ -134,7 +134,7 @@ For Codex CLI, use Codex's MCP manager with the npm package directly:
 
 ```bash
 # 1) Add Inspector Jake MCP server to Codex
-codex mcp add inspector-jake -- npx -y inspector-jake-mcp@1.0.10
+codex mcp add inspector-jake -- npx -y inspector-jake-mcp@1.1.0
 
 # 2) Verify it was added
 codex mcp list
@@ -149,7 +149,7 @@ If you see `No such file or directory (os error 2)`, re-add with the full `npx` 
 which npx
 codex mcp remove inspector-jake
 # Replace /opt/homebrew/bin/npx with the path printed by `which npx`
-codex mcp add inspector-jake -- /opt/homebrew/bin/npx -y inspector-jake-mcp@1.0.10
+codex mcp add inspector-jake -- /opt/homebrew/bin/npx -y inspector-jake-mcp@1.1.0
 ```
 
 For Claude Code (global, available in all projects):
@@ -193,7 +193,7 @@ For other MCP clients (generic stdio):
 
 If you configured your client with `npx -y inspector-jake-mcp` (no pinned version), you'll automatically get the latest version next time the server starts. No action needed.
 
-If you pinned a version (e.g. `inspector-jake-mcp@1.0.10`), update the version number in your config or re-run the `mcp add` command with the new version.
+If you pinned a version (e.g. `inspector-jake-mcp@1.1.0`), update the version number in your config or re-run the `mcp add` command with the new version.
 
 If you installed globally:
 
