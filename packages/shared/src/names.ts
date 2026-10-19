@@ -1,10 +1,25 @@
 /**
  * Session name utilities for InspectorJake.
- * 4 predefined names scanned in order: jake, annie, kevin, elsa.
+ * 100 predefined names, tried in order by the MCP server and all scanned by the extension.
  */
 
+/**
+ * Predefined session names. The first four keep their original ports, so existing
+ * setups behave as before. Every name hashes to a different port, and none lands on a
+ * well-known local port (gRPC 50051, BitTorrent 51413, Supabase 54321-54327, ...).
+ * Append new names at the end, and only after checking their ports with nameToPort.
+ */
 export const SESSION_NAMES = [
-  'jake', 'annie', 'kevin', 'elsa'
+  'jake', 'annie', 'kevin', 'elsa', 'max', 'luna', 'leo', 'mia', 'sam', 'zoe',
+  'theo', 'ivy', 'finn', 'ruby', 'owen', 'eli', 'maya', 'jack', 'lily', 'noah',
+  'emma', 'liam', 'ava', 'ben', 'cleo', 'milo', 'iris', 'hugo', 'june', 'otto',
+  'rose', 'ezra', 'hazel', 'axel', 'jade', 'ian', 'lola', 'kai', 'nina', 'gus',
+  'vera', 'abe', 'dora', 'cal', 'fern', 'dex', 'gwen', 'ray', 'tess', 'lou',
+  'beth', 'roy', 'cora', 'ned', 'faye', 'joel', 'lena', 'seth', 'mae', 'tom',
+  'nell', 'vic', 'opal', 'wade', 'rhea', 'zack', 'lucy', 'ross', 'hank', 'wren',
+  'boyd', 'dana', 'kurt', 'edie', 'dean', 'lara', 'neil', 'tina', 'glen', 'mona',
+  'carl', 'jane', 'wes', 'rita', 'evan', 'gina', 'jude', 'kate', 'ari', 'bea',
+  'cole', 'dina', 'jay', 'kim', 'luke', 'meg', 'nick', 'pam', 'rob', 'sue',
 ] as const;
 
 export type SessionName = typeof SESSION_NAMES[number];

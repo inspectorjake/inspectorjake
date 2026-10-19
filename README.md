@@ -35,7 +35,7 @@ Open the Inspector Jake DevTools tab and connect to the session name shown above
 
 ### Changing the Session Name
 
-Use `set_session_name` to switch to a different session at runtime. Predefined names (`jake`, `annie`, `kevin`, `elsa`) are auto-discovered by the Chrome extension. Custom names work too — the response includes the port for manual connection.
+Use `set_session_name` to switch to a different session at runtime. The 100 predefined names (`jake`, `annie`, `kevin`, `elsa`, `max`, `luna`, ... see [`names.ts`](packages/shared/src/names.ts)) are auto-discovered by the Chrome extension. Custom names work too — the response includes the port for manual connection.
 
 ```json
 // Request
@@ -378,7 +378,7 @@ All parameters are optional. Omit them to get all captured requests. Captures fe
 
 ## Session Discovery
 
-The extension discovers MCP servers using predefined session names (`jake`, `annie`, `kevin`, `elsa`), each mapped to a deterministic port via hash. When the MCP server starts, it picks the first available name and listens on its port. The extension scans all four ports to find active servers.
+The extension discovers MCP servers using 100 predefined session names (`jake`, `annie`, `kevin`, `elsa`, `max`, ...), each mapped to its own deterministic port via hash. When the MCP server starts, it picks the first available name and listens on its port, so up to 100 sessions can run side by side. The extension scans all of those ports to find active servers.
 
 You can also switch to a custom session name at runtime using `set_session_name`. Custom names get a deterministic port but won't be auto-discovered by the extension — the agent will tell you the port number for manual connection.
 
