@@ -8,6 +8,7 @@
     "packages/*"
   ],
   "scripts": {
+    "prebuild": "node scripts/check-install.mjs",
     "build": "npm run build -w @inspector-jake/shared && npm run build -w @inspector-jake/chrome-extension -w inspector-jake-mcp",
     "dev": "npm run dev --workspaces --parallel",
     "lint": "npm run lint --workspaces --if-present",

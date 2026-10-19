@@ -8,6 +8,7 @@ Chrome DevTools extension for Inspector Jake - let AI agents see what you see.
 
 1. Build the extension from the repo root:
    ```bash
+   npm install
    npm run build
    ```
 2. Create a zip from inside `dist` so `manifest.json` is at the zip root:
@@ -23,7 +24,7 @@ Important: do not zip the `packages/chrome-extension/dist` folder itself as a pa
 
 1. Clone the repository and build:
    ```bash
-   git clone https://github.com/agent-jake/inspector-jake.git
+   git clone https://github.com/inspectorjake/inspector-jake.git
    cd inspector-jake
    npm install
    npm run build

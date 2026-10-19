@@ -1,6 +1,6 @@
 /**
  * Port scanning discovery for finding active InspectorJake MCP servers.
- * Scans all 20 predefined ports to find available sessions.
+ * Scans the port of every predefined session name to find available sessions.
  */
 
 import { getDiscoveryPorts, type SessionName } from '@inspector-jake/shared';

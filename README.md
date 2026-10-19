@@ -35,7 +35,7 @@ Open the Inspector Jake DevTools tab and connect to the session name shown above
 
 ### Changing the Session Name
 
-Use `set_session_name` to switch to a different session at runtime. Predefined names (`jake`, `annie`, `kevin`, `elsa`) are auto-discovered by the Chrome extension. Custom names work too — the response includes the port for manual connection.
+Use `set_session_name` to switch to a different session at runtime. The 100 predefined names (`jake`, `annie`, `kevin`, `elsa`, `max`, `luna`, ... see [`names.ts`](packages/shared/src/names.ts)) are auto-discovered by the Chrome extension. Custom names work too — the response includes the port for manual connection.
 
 ```json
 // Request
@@ -134,7 +134,7 @@ For Codex CLI, use Codex's MCP manager with the npm package directly:
 
 ```bash
 # 1) Add Inspector Jake MCP server to Codex
-codex mcp add inspector-jake -- npx -y inspector-jake-mcp@1.0.10
+codex mcp add inspector-jake -- npx -y inspector-jake-mcp@1.1.0
 
 # 2) Verify it was added
 codex mcp list
@@ -149,7 +149,7 @@ If you see `No such file or directory (os error 2)`, re-add with the full `npx` 
 which npx
 codex mcp remove inspector-jake
 # Replace /opt/homebrew/bin/npx with the path printed by `which npx`
-codex mcp add inspector-jake -- /opt/homebrew/bin/npx -y inspector-jake-mcp@1.0.10
+codex mcp add inspector-jake -- /opt/homebrew/bin/npx -y inspector-jake-mcp@1.1.0
 ```
 
 For Claude Code (global, available in all projects):
@@ -193,7 +193,7 @@ For other MCP clients (generic stdio):
 
 If you configured your client with `npx -y inspector-jake-mcp` (no pinned version), you'll automatically get the latest version next time the server starts. No action needed.
 
-If you pinned a version (e.g. `inspector-jake-mcp@1.0.10`), update the version number in your config or re-run the `mcp add` command with the new version.
+If you pinned a version (e.g. `inspector-jake-mcp@1.1.0`), update the version number in your config or re-run the `mcp add` command with the new version.
 
 If you installed globally:
 
@@ -202,6 +202,17 @@ npm update -g inspector-jake-mcp
 ```
 
 ### 3. Load the Chrome Extension
+
+Build the extension first. `npm install` brings in everything the build needs, so no global TypeScript install is required:
+
+```bash
+git clone https://github.com/inspectorjake/inspector-jake.git
+cd inspector-jake
+npm install
+npm run build
+```
+
+Then load it:
 
 1. Open Chrome and go to `chrome://extensions/`
 2. Enable "Developer mode" (toggle in top right)
@@ -378,7 +389,7 @@ All parameters are optional. Omit them to get all captured requests. Captures fe
 
 ## Session Discovery
 
-The extension discovers MCP servers using predefined session names (`jake`, `annie`, `kevin`, `elsa`), each mapped to a deterministic port via hash. When the MCP server starts, it picks the first available name and listens on its port. The extension scans all four ports to find active servers.
+The extension discovers MCP servers using 100 predefined session names (`jake`, `annie`, `kevin`, `elsa`, `max`, ...), each mapped to its own deterministic port via hash. When the MCP server starts, it picks the first available name and listens on its port, so up to 100 sessions can run side by side. The extension scans all of those ports to find active servers.
 
 You can also switch to a custom session name at runtime using `set_session_name`. Custom names get a deterministic port but won't be auto-discovered by the extension — the agent will tell you the port number for manual connection.
 

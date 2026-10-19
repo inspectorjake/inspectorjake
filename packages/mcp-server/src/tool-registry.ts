@@ -189,7 +189,7 @@ export const toolDefs: ToolDef[] = [
       properties: {
         name: {
           type: 'string',
-          description: 'The session name to switch to. Predefined names (jake, annie, kevin, elsa) are auto-discovered by the Chrome extension. Custom names work too — the tool response includes the port number for manual connection.',
+          description: 'The session name to switch to. The 100 predefined names (jake, annie, kevin, elsa, max, luna, ...) are auto-discovered by the Chrome extension. Custom names work too — the tool response includes the port number for manual connection.',
         },
       },
       required: ['name'],

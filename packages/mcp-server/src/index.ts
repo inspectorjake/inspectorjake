@@ -2,7 +2,7 @@
 /**
  * Jake MCP MCP Server - CLI Entry Point
  *
- * Starts the MCP server with a session name (jake, annie, kevin, or elsa)
+ * Starts the MCP server under the first free predefined session name (jake, annie, kevin, ...)
  * and waits for Chrome extension connections via WebSocket.
  */
 
@@ -50,7 +50,7 @@ function installShutdown(state: SessionState): void {
 async function main() {
   log.info('Main', "Jake MCP MCP Server starting...");
 
-  // Try to find an available port by scanning names in order: jake, annie, kevin, elsa
+  // Take the first predefined name whose port is free, in order: jake, annie, kevin, ...
   let sessionName: SessionName | null = null;
   let port: number | null = null;
 
