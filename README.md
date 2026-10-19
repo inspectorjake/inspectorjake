@@ -203,6 +203,17 @@ npm update -g inspector-jake-mcp
 
 ### 3. Load the Chrome Extension
 
+Build the extension first. `npm install` brings in everything the build needs, so no global TypeScript install is required:
+
+```bash
+git clone https://github.com/inspectorjake/inspector-jake.git
+cd inspector-jake
+npm install
+npm run build
+```
+
+Then load it:
+
 1. Open Chrome and go to `chrome://extensions/`
 2. Enable "Developer mode" (toggle in top right)
 3. Click "Load unpacked"
