@@ -27,6 +27,8 @@ const mocks = vi.hoisted(() => ({
   chatMarkRead: vi.fn(),
   chatHandleEntry: vi.fn(),
   chatHandleBridgeInfo: vi.fn(),
+  selections: { value: [] as unknown[], __v_isRef: true },
+  bridgeInfo: { value: null as unknown, __v_isRef: true },
 }));
 
 let runtimeListener: ((message: { type: string; [key: string]: unknown }) => unknown) | null = null;
@@ -58,8 +60,10 @@ const panelStubs = {
       'connecting',
       'isPicking',
       'isCoolingDown',
+      'sendBlocker',
+      'sending',
     ],
-    emits: ['hover-selection-start', 'hover-selection-end'],
+    emits: ['hover-selection-start', 'hover-selection-end', 'send-to-claude'],
     template: `
       <div>
         <button
@@ -71,6 +75,7 @@ const panelStubs = {
           @click="$emit('hover-selection-start', { type: 'screenshot' })"
         />
         <button class="hover-end" @click="$emit('hover-selection-end')" />
+        <button class="send-to-claude" :data-blocker="sendBlocker" @click="$emit('send-to-claude')" />
       </div>
     `,
   },
@@ -94,7 +99,7 @@ const panelStubs = {
 
 vi.mock('../composables/index.js', () => ({
   useSelections: () => ({
-    selections: ref([]),
+    selections: mocks.selections,
     expandedId: ref<string | null>(null),
     expandedSelection: ref(null),
     toggleExpanded: vi.fn(),
@@ -147,7 +152,7 @@ vi.mock('../composables/index.js', () => ({
   }),
   useChat: () => ({
     messages: ref([]),
-    bridgeInfo: ref(null),
+    bridgeInfo: mocks.bridgeInfo,
     sending: ref(false),
     error: ref<string | null>(null),
     unread: ref(0),
@@ -158,6 +163,7 @@ vi.mock('../composables/index.js', () => ({
     markRead: mocks.chatMarkRead,
     reset: mocks.chatReset,
   }),
+  SEND_TO_CLAUDE_TEXT: 'Make the changes in my notes.',
   LogLevel: {
     INFO: 'INFO',
     SUCCESS: 'SUCCESS',
@@ -288,6 +294,8 @@ describe('Panel chat view', () => {
     vi.clearAllMocks();
     mocks.isPicking.value = false;
     mocks.isConnected.value = true;
+    mocks.selections.value = [];
+    mocks.bridgeInfo.value = null;
     runtimeListener = null;
 
     vi.stubGlobal('chrome', {
@@ -325,7 +333,7 @@ describe('Panel chat view', () => {
     await wrapper.get('.chat-send').trigger('click');
     await new Promise((r) => setTimeout(r, 0));
 
-    expect(mocks.chatSend).toHaveBeenCalledWith('what is this?');
+    expect(mocks.chatSend).toHaveBeenCalledWith('what is this?', []);
     expect(wrapper.get('.chat-draft').text()).toBe('');
   });
 
@@ -350,6 +358,36 @@ describe('Panel chat view', () => {
     await wrapper.get('.view-chat').trigger('click');
     await runtimeListener?.({ type: 'CHAT_ENTRY', sessionName: 'jake', entry });
     expect(mocks.chatHandleEntry).toHaveBeenLastCalledWith({ sessionName: 'jake', entry }, true);
+  });
+
+  it('Send to Claude opens the chat and sends the captures', async () => {
+    const capture = { id: 's1', type: 'element', tagName: 'button', image: '', note: 'Make it orange' };
+    mocks.selections.value = [capture];
+    mocks.bridgeInfo.value = { available: true, name: 'jake-panel' };
+    const wrapper = mountPanel();
+    expect(wrapper.get('.send-to-claude').attributes('data-blocker')).toBeUndefined();
+
+    await wrapper.get('.send-to-claude').trigger('click');
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(wrapper.find('.chat-panel-stub').exists()).toBe(true);
+    expect(mocks.chatSend).toHaveBeenCalledWith('Make the changes in my notes.', [capture]);
+  });
+
+  it('blocks Send to Claude without captures or without chat', async () => {
+    mocks.selections.value = [];
+    mocks.bridgeInfo.value = { available: true, name: 'jake-panel' };
+    const noCaptures = mountPanel();
+    expect(noCaptures.get('.send-to-claude').attributes('data-blocker')).toBe('Capture an element or region first.');
+    await noCaptures.get('.send-to-claude').trigger('click');
+    expect(mocks.chatSend).not.toHaveBeenCalled();
+    expect(noCaptures.find('.chat-panel-stub').exists()).toBe(false);
+    noCaptures.unmount();
+
+    mocks.selections.value = [{ id: 's1' }];
+    mocks.bridgeInfo.value = { available: false, reason: 'Chat needs Claude Code 2.1.300 or later.' };
+    const noChat = mountPanel();
+    expect(noChat.get('.send-to-claude').attributes('data-blocker')).toBe('Chat needs Claude Code 2.1.300 or later.');
   });
 
   it('routes chat bridge info', async () => {

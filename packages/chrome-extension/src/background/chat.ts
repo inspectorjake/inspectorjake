@@ -11,6 +11,7 @@ import type {
   ChatEntry,
   ChatPageContext,
   ChatServerMessage,
+  ChatThumbnail,
   SessionName,
 } from '@inspector-jake/shared';
 import { buildSelectionsResponse } from './tool-handlers.js';
@@ -18,6 +19,9 @@ import { getConnectionStatus, sendChat } from './ws-client.js';
 import { log } from '../utils/logger.js';
 
 const MAX_HISTORY = 200;
+// Thumbnails are stored with the history, so keep them few and small (a 96px WebP is a few KB)
+const MAX_THUMBNAILS = 12;
+const MAX_THUMBNAIL_URL_LENGTH = 60_000;
 
 let bridgeInfo: ChatBridgeInfo | null = null;
 let history: ChatEntry[] = [];
@@ -97,10 +101,29 @@ export async function getChatState(): Promise<{
   return { sessionName, bridgeInfo, history: [...(await loadHistory(sessionName))] };
 }
 
+/** Keep only well-formed thumbnails, with an image only if it is a small data URL. */
+function cleanThumbnails(value: unknown): ChatThumbnail[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((t): t is ChatThumbnail =>
+      !!t && typeof t.id === 'string' && typeof t.label === 'string' && typeof t.src === 'string')
+    .slice(0, MAX_THUMBNAILS)
+    .map((t) => ({
+      id: t.id,
+      label: t.label.slice(0, 40),
+      src: t.src.startsWith('data:image/') && t.src.length <= MAX_THUMBNAIL_URL_LENGTH ? t.src : '',
+      ...(typeof t.note === 'string' && t.note ? { note: t.note.slice(0, 500) } : {}),
+    }));
+}
+
 /**
  * Send what the user typed, plus the page and every capture with its note.
+ * `thumbnails` are the panel's previews of those captures, shown with the message in the chat.
  */
-export async function sendChatMessage(text: string): Promise<{ ok: boolean; error?: string }> {
+export async function sendChatMessage(
+  text: string,
+  thumbnails?: unknown
+): Promise<{ ok: boolean; error?: string }> {
   const { connected, sessionName, tabId } = getConnectionStatus();
   if (!connected || !sessionName) {
     return { ok: false, error: 'Connect to an MCP session first.' };
@@ -112,12 +135,14 @@ export async function sendChatMessage(text: string): Promise<{ ok: boolean; erro
 
   // Same shape see_jakes_notes returns, minus image data; Claude can fetch images by id
   const selections = buildSelectionsResponse().map(({ image: _image, ...rest }) => rest);
+  const previews = cleanThumbnails(thumbnails);
   const entry: ChatEntry = {
     id: crypto.randomUUID(),
     role: 'you',
     text: trimmed,
     ts: Date.now(),
     attachments: selections.length,
+    ...(previews.length > 0 ? { thumbnails: previews } : {}),
     status: 'sending',
   };
   await upsertEntry(sessionName, entry);

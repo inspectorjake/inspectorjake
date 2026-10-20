@@ -46,6 +46,25 @@ describe('useChat', () => {
     expect(chat.sending.value).toBe(false);
   });
 
+  it('sends thumbnails of the captures with the message', async () => {
+    mockSendMessage.mockResolvedValue({ ok: true });
+    const chat = useChat();
+    const selections = [
+      { id: 's1', type: 'element', tagName: 'BUTTON', image: '', note: ' Make it orange ', timestamp: 0, width: 1, height: 1 },
+      { id: 's2', type: 'screenshot', image: '', timestamp: 0, width: 1, height: 1 },
+    ] as any;
+
+    expect(await chat.send('Make the changes in my notes.', selections)).toBe(true);
+    expect(mockSendMessage).toHaveBeenCalledWith({
+      type: 'CHAT_SEND',
+      text: 'Make the changes in my notes.',
+      thumbnails: [
+        { id: 's1', src: '', label: '<button>', note: 'Make it orange' },
+        { id: 's2', src: '', label: 'Region' },
+      ],
+    });
+  });
+
   it('keeps the error when sending fails', async () => {
     mockSendMessage.mockResolvedValue({ ok: false, error: 'session is gone' });
     const chat = useChat();

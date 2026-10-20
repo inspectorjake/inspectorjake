@@ -223,7 +223,7 @@ async function handleMessage(
     }
 
     case 'CHAT_SEND':
-      return sendChatMessage(typeof message.text === 'string' ? message.text : '');
+      return sendChatMessage(typeof message.text === 'string' ? message.text : '', message.thumbnails);
 
     case 'GET_CHAT_STATE':
       return getChatState();

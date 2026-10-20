@@ -16,6 +16,10 @@ defineProps<{
   connecting: boolean;
   isPicking: boolean;
   isCoolingDown: boolean;
+  /** Why Send to Claude can't be used right now, or null when it can */
+  sendBlocker?: string | null;
+  /** A chat message is on its way */
+  sending?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -26,6 +30,7 @@ const emit = defineEmits<{
   'connect': [session: DiscoveredSession];
   'scan': [];
   'pick': [];
+  'send-to-claude': [];
   'clear-all': [];
 }>();
 </script>
@@ -109,9 +114,24 @@ const emit = defineEmits<{
           </svg>
           {{ isPicking ? 'Click an element…' : 'Pick Element' }}
         </button>
+
+        <!-- Send to Claude: opens Chat and sends every capture with its note -->
+        <button
+          class="min-h-[50px] rounded-[14px] text-[17px] font-semibold flex items-center justify-center gap-2 bg-tint/15 text-tint hover:bg-tint/25 transition-colors disabled:opacity-40 disabled:pointer-events-none"
+          :disabled="!!sendBlocker || sending"
+          :title="sendBlocker ?? 'Open Chat and ask Claude to make the changes in your notes'"
+          data-testid="send-to-claude"
+          @click.stop="emit('send-to-claude')"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="m22 2-7 20-4-9-9-4z" />
+            <path d="M22 2 11 13" />
+          </svg>
+          {{ sending ? 'Sending…' : 'Send to Claude' }}
+        </button>
         <p class="px-4 text-[13px] text-ios-label-secondary">
           <template v-if="isPicking">Scroll ↑↓ for parent or child · Drag to capture a region · Esc to cancel</template>
-          <template v-else>Notes on your captures go to Claude with every chat message.</template>
+          <template v-else>Send to Claude opens Chat and sends your captures with their notes.</template>
         </p>
       </template>
 

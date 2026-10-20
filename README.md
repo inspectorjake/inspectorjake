@@ -4,7 +4,7 @@
 
 Direct your agent to make updates with point and click.
 
-![demo](https://github.com/user-attachments/assets/a8bf51b2-d1f6-45ca-a28f-444777f06722)
+https://github.com/user-attachments/assets/7ad97c35-18bf-46ee-bec6-299317bf6c77
 
 [![npm version](https://badge.fury.io/js/inspector-jake-mcp.svg)](https://www.npmjs.com/package/inspector-jake-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -64,6 +64,8 @@ The Inspector Jake DevTools panel is your workspace for capturing elements, anno
 <img src="docs/images/chat.png" alt="Chatting with the attached Claude Code session" width="800">
 
 Switch to **Chat** and send a message straight to the Claude Code session that started the MCP server. Every message carries the page plus all your captures and their notes, and Claude's reply shows up in the panel. Replies that arrive while DevTools is closed are kept for when you reopen it.
+
+Or skip the typing: **Send to Claude**, under Pick Element, switches to Chat and sends "Make the changes in my notes." with every capture. Each message you send shows thumbnails of the captures that went with it.
 
 Chat uses Claude Code's cross-session messaging, so the panel shows up as its own session (for example `jake-panel`) that Claude replies to. It works on macOS, Linux and Windows. Claude treats panel messages like a teammate's request: it acts on them, but never counts them as your approval for anything pending.
 

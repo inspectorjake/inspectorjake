@@ -14,6 +14,7 @@ import {
   useLogs,
   useSettings,
   useChat,
+  SEND_TO_CLAUDE_TEXT,
   LogLevel,
   LogSource,
   type DiscoveredSession,
@@ -100,9 +101,16 @@ const activeView = ref<ViewMode>('preview');
 const chatDraft = ref('');
 
 async function handleChatSend(): Promise<void> {
-  if (await sendChat(chatDraft.value)) {
+  if (await sendChat(chatDraft.value, selections.value)) {
     chatDraft.value = '';
   }
+}
+
+/** Send to Claude: open the chat and ask Claude to make the changes in the notes, with every capture. */
+async function handleSendToClaude(): Promise<void> {
+  if (sendBlocker.value) return;
+  activeView.value = 'chat';
+  await sendChat(SEND_TO_CLAUDE_TEXT, selections.value);
 }
 
 // ============================================================================
@@ -112,6 +120,13 @@ async function handleChatSend(): Promise<void> {
 const error = computed(() => connectionError.value || pickerError.value);
 const hasLogErrors = computed(() => logs.value.some(l => l.level === LogLevel.ERROR));
 const noteCount = computed(() => selections.value.filter(s => s.note?.trim()).length);
+const sendBlocker = computed(() => {
+  if (chatBridgeInfo.value?.available !== true) {
+    return chatBridgeInfo.value?.reason ?? 'Chat with Claude is unavailable for this session.';
+  }
+  if (selections.value.length === 0) return 'Capture an element or region first.';
+  return null;
+});
 
 // Load the chat for whichever MCP session we're connected to
 watch(connectedSessionName, (name) => {
@@ -329,11 +344,14 @@ onUnmounted(() => {
         :connecting="connecting"
         :is-picking="isPicking"
         :is-cooling-down="isCoolingDown"
+        :send-blocker="sendBlocker"
+        :sending="chatSending"
         @select="toggleExpanded"
         @delete="removeSelection"
         @connect="connectToSession"
         @scan="scanForSessions"
         @pick="handlePickerClick"
+        @send-to-claude="handleSendToClaude"
         @clear-all="clearAllSelections"
         @hover-selection-start="handleSelectionHoverStart"
         @hover-selection-end="handleSelectionHoverEnd"
