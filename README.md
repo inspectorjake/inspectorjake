@@ -4,7 +4,7 @@
 
 Direct your agent to make updates with point and click.
 
-![demo](https://github.com/user-attachments/assets/a8bf51b2-d1f6-45ca-a28f-444777f06722)
+https://github.com/user-attachments/assets/7ad97c35-18bf-46ee-bec6-299317bf6c77
 
 [![npm version](https://badge.fury.io/js/inspector-jake-mcp.svg)](https://www.npmjs.com/package/inspector-jake-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
