@@ -140,6 +140,8 @@ export interface GetSelectionsResponse {
     hint?: string;
     note?: string;
   }>;
+  /** The panel auto-cleared these after Claude read them; they are the batch it already saw */
+  alreadySeen?: boolean;
 }
 
 export interface ViewImageResponse {
@@ -182,6 +184,8 @@ export interface DiscoveryResponse {
     title: string;
     url: string;
   };
+  /** Name of the Claude Code session that started this server, when known */
+  claudeSession?: string;
 }
 
 // Extension -> Background script messages
@@ -257,7 +261,7 @@ export interface ChatStatusMessage {
 
 export interface ChatBridgeInfo {
   available: boolean;
-  /** Name the bridge is registered under, e.g. "jake-panel" */
+  /** Name the bridge is registered under, e.g. "inspector-jake-de-panel" */
   name?: string;
   /** Name of the attached Claude Code session, when known */
   parentName?: string;

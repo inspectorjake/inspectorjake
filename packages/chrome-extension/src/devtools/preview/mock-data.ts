@@ -2,7 +2,7 @@
 // Provides realistic element selections, sessions, and screenshots.
 
 export const MOCK_SESSIONS = [
-  { name: 'annie', port: 57490, status: 'ready' as const },
+  { name: 'annie', port: 57490, status: 'ready' as const, claudeSession: 'inspector-jake-de' },
   { name: 'test_session', port: 57491, status: 'ready' as const },
 ];
 
@@ -106,7 +106,7 @@ export function generateMockScreenshot(width: number, height: number): string {
 
 export const MOCK_CHAT_BRIDGE = {
   available: true,
-  name: 'annie-panel',
+  name: 'inspector-jake-de-panel',
   parentName: 'inspector-jake-de',
 };
 

@@ -21,6 +21,8 @@ export interface DiscoveredSession {
     title: string;
     url: string;
   };
+  /** Name of the Claude Code session that started the server, when known */
+  claudeSession?: string;
 }
 
 /**

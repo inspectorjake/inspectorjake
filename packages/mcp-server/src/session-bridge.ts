@@ -29,6 +29,8 @@ const SEND_TIMEOUT_MS = 5000;
 const HALF_CLOSE_DELAY_MS = 150;
 /** Larger than Claude Code's 1 MiB per-message limit, so a valid frame always fits. */
 const MAX_INBOUND_BUFFER = 2 * 1024 * 1024;
+/** How often to re-read the Claude Code session's name from the registry. */
+const PARENT_NAME_POLL_MS = 5000;
 const WRAPPER_TAG = 'cross-session-message';
 
 const WRAPPER_RE = new RegExp(
@@ -57,23 +59,27 @@ export interface SessionBridge {
   info: () => ChatBridgeInfo;
   /** Send a message body to the attached Claude Code session. */
   send: (body: string) => Promise<void>;
-  /** Re-register under a new name. */
-  rename: (name: string) => void;
+  /** Follow a new MCP session name (set_session_name). The bridge re-registers if its name changes. */
+  rename: (sessionName: string) => void;
   /** Remove the socket and registry entry. Safe to call more than once. */
   close: () => void;
 }
 
 export interface SessionBridgeOptions {
-  name: string;
+  /** The MCP session's name, e.g. "jake". Names the bridge when the Claude Code session's name is unknown. */
+  sessionName: string;
   version: string;
   onInbound: (message: InboundChat) => void;
   onStatus: (status: DeliveryStatus) => void;
+  /** Called when the info changes, e.g. the Claude Code session was renamed. */
+  onInfoChange?: (info: ChatBridgeInfo) => void;
   /** Overrides for tests */
   env?: NodeJS.ProcessEnv;
   platform?: NodeJS.Platform;
   pid?: number;
   readProcStart?: (pid: number) => Promise<string>;
   readPidDomain?: () => Promise<string>;
+  parentNamePollMs?: number;
 }
 
 const PIPE_RE = /^[\\/]{2}[.?][\\/]pipe[\\/](?:(LOCAL)[\\/])?([^\\/]+)$/i;
@@ -122,10 +128,30 @@ function tokensMatch(presented: unknown, expected: string): boolean {
   return timingSafeEqual(Buffer.from(presented), Buffer.from(expected));
 }
 
-/** Name the bridge registers under for a given MCP session name, e.g. "jake" -> "jake-panel". */
-export function bridgeNameFor(sessionName: string): string {
-  const slug = sessionName.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '');
-  return `${slug || 'jake'}-panel`;
+/**
+ * Name the bridge registers under: after its Claude Code session when that is known
+ * ("inspector-jake-de" -> "inspector-jake-de-panel"), else after the MCP session ("jake" -> "jake-panel").
+ */
+export function bridgeNameFor(sessionName: string, claudeSession?: string): string {
+  const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '');
+  return `${(claudeSession && slug(claudeSession)) || slug(sessionName) || 'jake'}-panel`;
+}
+
+/** Whether another registered session already goes by `name`. */
+function nameTaken(registryDir: string, name: string, ownFile: string): boolean {
+  let files: string[];
+  try {
+    files = fs.readdirSync(registryDir).filter((f) => /^\d+\.json$/.test(f) && f !== ownFile);
+  } catch {
+    return false;
+  }
+  return files.some((file) => {
+    try {
+      return JSON.parse(fs.readFileSync(path.join(registryDir, file), 'utf8')).name === name;
+    } catch {
+      return false;
+    }
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -404,7 +430,17 @@ export async function createSessionBridge(opts: SessionBridgeOptions): Promise<S
   const keyFile = authRequired ? path.join(registryDir, keyFileName(pid, socketPath)) : undefined;
   const from = socketAddress(socketPath);
 
-  let name = opts.name;
+  // Named after the Claude Code session, which can be renamed (/rename), so both names are tracked
+  let sessionName = opts.sessionName;
+  let parentName = findSessionName(registryDir, parentSocket);
+  const pickName = () => {
+    const preferred = bridgeNameFor(sessionName, parentName);
+    // Two Claude Code sessions can share a name; the MCP session name is unique on this machine
+    return parentName && nameTaken(registryDir, preferred, path.basename(registryFile))
+      ? bridgeNameFor(sessionName, `${parentName}-${sessionName}`)
+      : preferred;
+  };
+  let name = pickName();
   let nameSince = Date.now();
   let closed = false;
 
@@ -529,12 +565,32 @@ export async function createSessionBridge(opts: SessionBridgeOptions): Promise<S
 
   log.info('Bridge', `Registered as "${name}" on ${socketPath}`);
 
+  /** Re-register if the name the bridge should have has changed. */
+  const updateName = () => {
+    const next = pickName();
+    if (closed || next === name) return;
+    name = next;
+    nameSince = Date.now();
+    try {
+      writeRecord();
+      log.info('Bridge', `Re-registered as "${name}"`);
+    } catch (err) {
+      log.warn('Bridge', 'Could not update registry entry:', (err as Error).message);
+    }
+  };
+
+  const info = (): ChatBridgeInfo => ({ available: true, name, parentName });
+  const parentWatch = setInterval(() => {
+    const current = findSessionName(registryDir, parentSocket);
+    if (current === parentName) return;
+    parentName = current;
+    updateName();
+    opts.onInfoChange?.(info());
+  }, opts.parentNamePollMs ?? PARENT_NAME_POLL_MS);
+  parentWatch.unref();
+
   return {
-    info: () => ({
-      available: true,
-      name,
-      parentName: findSessionName(registryDir, parentSocket),
-    }),
+    info,
 
     send: (body: string) =>
       new Promise<void>((resolve, reject) => {
@@ -566,21 +622,15 @@ export async function createSessionBridge(opts: SessionBridgeOptions): Promise<S
         conn.resume();
       }),
 
-    rename: (newName: string) => {
-      if (closed || newName === name) return;
-      name = newName;
-      nameSince = Date.now();
-      try {
-        writeRecord();
-        log.info('Bridge', `Re-registered as "${name}"`);
-      } catch (err) {
-        log.warn('Bridge', 'Could not update registry entry:', (err as Error).message);
-      }
+    rename: (newSessionName: string) => {
+      sessionName = newSessionName;
+      updateName();
     },
 
     close: () => {
       if (closed) return;
       closed = true;
+      clearInterval(parentWatch);
       server.close();
       removeSocket();
       fs.rmSync(registryFile, { force: true });

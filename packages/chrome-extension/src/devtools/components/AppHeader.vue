@@ -10,6 +10,7 @@ import ViewToggleBar, { type ViewMode } from './ViewToggleBar.vue'
 defineProps<{
   isConnected: boolean
   sessionName: string | null
+  claudeSession?: string | null
   connecting: boolean
   isPicking: boolean
   isCoolingDown: boolean
@@ -71,6 +72,7 @@ const emit = defineEmits<{
       <ConnectionBadge
         :is-connected="isConnected"
         :session-name="sessionName"
+        :claude-session="claudeSession"
         :connecting="connecting"
         @disconnect="emit('disconnect')"
       />

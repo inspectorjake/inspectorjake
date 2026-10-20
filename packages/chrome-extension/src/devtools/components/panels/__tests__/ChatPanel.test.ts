@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mount } from '@vue/test-utils';
 import type { ChatBridgeInfo, ChatEntry } from '@inspector-jake/shared';
 import ChatPanel from '../ChatPanel.vue';
@@ -63,6 +63,41 @@ describe('ChatPanel', () => {
     expect(group.text()).toContain('+1');
     // Thumbnails replace the count pill
     expect(wrapper.get('[data-testid="chat-message"]').text()).not.toContain('5 captures');
+  });
+
+  describe('typing indicator', () => {
+    const sent = (status: ChatEntry['status'], ts = Date.now()): ChatEntry =>
+      ({ id: 'y', role: 'you', text: 'make it orange', ts, status });
+
+    afterEach(() => vi.useRealTimers());
+
+    it('shows Claude typing once your message is delivered', () => {
+      const typing = mountPanel({ messages: [sent('sent')] }).get('[data-testid="chat-typing"]');
+      expect(typing.attributes('aria-label')).toBe('inspector-jake-de is typing');
+      expect(typing.text()).toContain('inspector-jake-de');
+    });
+
+    it('waits for delivery, and stops on a reply, a notice or a failed send', () => {
+      const reply: ChatEntry = { id: 'c', role: 'claude', text: 'Done.', ts: Date.now() };
+      const held: ChatEntry = { id: 's', role: 'system', text: 'Held for approval in the Claude Code terminal.', ts: Date.now() };
+      for (const messages of [[sent('sending')], [sent('failed')], [sent('sent'), reply], [sent('sent'), held], []]) {
+        expect(mountPanel({ messages }).find('[data-testid="chat-typing"]').exists()).toBe(false);
+      }
+    });
+
+    it('stops after ten minutes without a reply', async () => {
+      vi.useFakeTimers();
+      const wrapper = mountPanel({ messages: [sent('sent')] });
+      expect(wrapper.find('[data-testid="chat-typing"]').exists()).toBe(true);
+
+      await vi.advanceTimersByTimeAsync(10 * 60 * 1000);
+      expect(wrapper.find('[data-testid="chat-typing"]').exists()).toBe(false);
+    });
+
+    it('does not show when chat is unavailable', () => {
+      const wrapper = mountPanel({ messages: [sent('sent')], bridgeInfo: { available: false, reason: 'gone' } });
+      expect(wrapper.find('[data-testid="chat-typing"]').exists()).toBe(false);
+    });
   });
 
   it('shows why a message was not sent', () => {

@@ -59,7 +59,7 @@ function onNoteInput(event: Event) {
 </script>
 
 <template>
-  <main class="flex-1 flex flex-col bg-ios-bg min-w-0 overflow-hidden">
+  <main class="flex-1 flex flex-col bg-ios-bg min-w-0 overflow-y-auto custom-scrollbar">
     <!-- Large-title header -->
     <SelectorBreadcrumb
       v-if="expandedSelection"
@@ -68,8 +68,8 @@ function onNoteInput(event: Event) {
       :frame-id="isElement(expandedSelection) ? expandedSelection.frameId : undefined"
     />
 
-    <!-- Main content grid -->
-    <div class="flex-1 p-4 grid grid-cols-1 grid-rows-[auto_1fr] gap-4 overflow-hidden min-h-0 lg:grid-cols-[1fr_400px] lg:grid-rows-[1fr]">
+    <!-- Main content grid. Panels keep their minimum heights; in a short window the workspace scrolls. -->
+    <div class="flex-1 p-4 grid grid-cols-1 grid-rows-[auto_1fr] gap-4 lg:grid-cols-[1fr_400px] lg:grid-rows-[1fr]">
       <!-- Left column: Preview -->
       <div class="min-h-[200px] lg:h-full lg:overflow-hidden lg:min-h-0">
         <PreviewPanel
@@ -81,7 +81,7 @@ function onNoteInput(event: Event) {
       </div>
 
       <!-- Right column: Note + Inspector + Logs -->
-      <div class="flex flex-col gap-3 overflow-hidden min-h-0">
+      <div class="flex flex-col gap-3">
         <!-- Note editor: iOS grouped text field -->
         <div v-if="expandedSelection" class="shrink-0 flex flex-col gap-1.5">
           <label for="capture-note" class="pl-4 text-[13px] text-ios-label-secondary uppercase tracking-[0.2px]">Jake's notes</label>

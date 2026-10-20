@@ -166,4 +166,63 @@ describe('tool-handlers see_jakes_notes auto-clear behavior', () => {
     expect(result.success).toBe(true);
     expect(result.result).toEqual({ error: 'No image found with id: missing-id' });
   });
+
+  describe('follow-ups after auto-clear', () => {
+    const capture = (id: string, note?: string) => ({
+      id,
+      type: 'element' as const,
+      timestamp: Date.now(),
+      image: `data:image/png;base64,${id}`,
+      width: 160,
+      height: 44,
+      rect: { x: 0, y: 0, width: 160, height: 44 },
+      selector: `button.${id}`,
+      tagName: 'button',
+      className: id,
+      attributes: [],
+      ...(note ? { note } : {}),
+    });
+    const seeNotes = async (id: string) =>
+      (await handlers.handleToolRequest(makeGetJakesNotesRequest(id), null)).result as any;
+
+    it('gives Claude the captures it already saw when it asks again', async () => {
+      handlers.updateSelections([capture('cta', 'Make it orange')]);
+
+      const first = await seeNotes('req-a');
+      expect(first.selections.map((s: any) => s.id)).toEqual(['cta']);
+      expect(first.alreadySeen).toBeUndefined();
+      expect(handlers.getSelections()).toHaveLength(0);
+
+      const followUp = await seeNotes('req-b');
+      expect(followUp.alreadySeen).toBe(true);
+      expect(followUp.selections).toEqual(first.selections);
+      // Nothing new to clear, and the panel stays empty
+      expect(sendMessageMock).toHaveBeenCalledTimes(1);
+      expect(handlers.getSelections()).toHaveLength(0);
+    });
+
+    it('replaces the batch Claude saw once it reads new captures', async () => {
+      handlers.updateSelections([capture('old')]);
+      await seeNotes('req-c');
+
+      handlers.updateSelections([capture('new')]);
+      const fresh = await seeNotes('req-d');
+      expect(fresh.alreadySeen).toBeUndefined();
+      expect(fresh.selections.map((s: any) => s.id)).toEqual(['new']);
+
+      const followUp = await seeNotes('req-e');
+      expect(followUp.alreadySeen).toBe(true);
+      expect(followUp.selections.map((s: any) => s.id)).toEqual(['new']);
+    });
+
+    it('forgets the batch Claude saw when told to', async () => {
+      handlers.updateSelections([capture('cta')]);
+      await seeNotes('req-f');
+
+      handlers.forgetSeenSelections();
+      const result = await seeNotes('req-g');
+      expect(result.selections).toEqual([]);
+      expect(result.alreadySeen).toBeUndefined();
+    });
+  });
 });

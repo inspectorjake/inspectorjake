@@ -37,7 +37,7 @@ const STYLE_MODES = [
 </script>
 
 <template>
-  <div class="flex-1 rounded-[14px] bg-ios-elevated flex flex-col overflow-hidden min-h-0">
+  <div class="flex-1 rounded-[14px] bg-ios-elevated flex flex-col overflow-hidden min-h-[240px]">
     <div class="p-3 flex flex-col gap-2 shrink-0 border-b border-ios-separator">
       <!-- View switch -->
       <div role="tablist" aria-label="Inspector view" class="flex p-[2px] rounded-[9px] bg-[rgba(118,118,128,0.24)]">

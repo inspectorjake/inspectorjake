@@ -32,6 +32,13 @@
   --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
 
   --animate-pulse-slow: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  --animate-typing-dot: typing-dot 1.4s ease-in-out infinite;
+
+  /* iMessage-style typing dots: each brightens and lifts in turn */
+  @keyframes typing-dot {
+    0%, 60%, 100% { opacity: 0.35; transform: translateY(0); }
+    30% { opacity: 1; transform: translateY(-2px); }
+  }
 }
 
 /* Bundled fallback fonts for systems without SF */

@@ -13,8 +13,9 @@ import type {
 } from '@inspector-jake/shared';
 import {
   getSelections,
+  getSeenSelections,
   getCachedSelectionImage,
-  clearSelections,
+  clearSeenSelections,
   buildSelectionsResponse,
   type SelectionResponse,
 } from './selection-manager.js';
@@ -22,9 +23,17 @@ import { generateInteractiveSnapshot } from './page-scripts/generate-snapshot.js
 
 /**
  * Handle see_jakes_notes tool.
- * Returns all selections with differentiated response format.
+ * Returns all selections with differentiated response format. When auto-clear has emptied the
+ * panel, returns the batch Claude already saw, marked `alreadySeen`.
  */
-export async function handleGetSelections(): Promise<{ selections: SelectionResponse[] }> {
+export async function handleGetSelections(): Promise<{ selections: SelectionResponse[]; alreadySeen?: true }> {
+  if (getSelections().length === 0) {
+    const seen = getSeenSelections();
+    return seen.length > 0
+      ? { selections: buildSelectionsResponse(seen), alreadySeen: true }
+      : { selections: [] };
+  }
+
   const response = { selections: buildSelectionsResponse() };
 
   let shouldAutoClear = true;
@@ -38,7 +47,7 @@ export async function handleGetSelections(): Promise<{ selections: SelectionResp
   }
 
   if (shouldAutoClear) {
-    clearSelections();
+    clearSeenSelections();
     chrome.runtime.sendMessage({ type: 'SELECTIONS_AUTO_CLEARED' }).catch(() => {});
   }
 

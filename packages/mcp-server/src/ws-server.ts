@@ -112,6 +112,16 @@ export async function createWsServer(port: number, hooks: WsServerHooks = {}): P
       return clientSocket !== null && clientSocket.readyState === WebSocket.OPEN;
     }
 
+    function discoveryInfo(): DiscoveryResponse {
+      const claudeSession = hooks.getChatBridgeInfo?.().parentName;
+      return {
+        name: sessionName as any,
+        status: clientSocket ? 'connected' : 'ready',
+        connectedTab: connectedTabInfo,
+        ...(claudeSession && { claudeSession }),
+      };
+    }
+
     function pushToClient(message: ChatServerMessage): void {
       if (isClientConnected()) {
         clientSocket!.send(JSON.stringify(message));
@@ -234,13 +244,7 @@ export async function createWsServer(port: number, hooks: WsServerHooks = {}): P
 
         isConnected: isClientConnected,
 
-        getDiscoveryInfo: (): DiscoveryResponse => {
-          return {
-            name: sessionName as any,
-            status: clientSocket ? 'connected' : 'ready',
-            connectedTab: connectedTabInfo,
-          };
-        },
+        getDiscoveryInfo: discoveryInfo,
 
         close: () => {
           stopPingInterval();
@@ -256,13 +260,8 @@ export async function createWsServer(port: number, hooks: WsServerHooks = {}): P
 
       if (url.pathname === '/discovery') {
         // Send discovery info and close
-        const instance = {
-          name: sessionName,
-          status: clientSocket ? 'connected' : 'ready',
-          connectedTab: connectedTabInfo,
-        };
         // Wait for send to complete before closing to avoid race condition
-        ws.send(JSON.stringify(instance), () => {
+        ws.send(JSON.stringify(discoveryInfo()), () => {
           ws.close();
         });
         return;

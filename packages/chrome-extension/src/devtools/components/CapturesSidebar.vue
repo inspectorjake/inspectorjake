@@ -70,7 +70,7 @@ const emit = defineEmits<{
 
       <!-- Connected: captures -->
       <template v-if="isConnected">
-        <div v-if="selections.length > 0" class="rounded-[14px] bg-ios-elevated overflow-hidden">
+        <div v-if="selections.length > 0" class="shrink-0 rounded-[14px] bg-ios-elevated overflow-hidden">
           <CaptureCard
             v-for="(sel, i) in selections"
             :key="sel.id"
@@ -155,25 +155,19 @@ const emit = defineEmits<{
         </div>
 
         <!-- Session list -->
-        <ul v-else class="rounded-[14px] bg-ios-elevated overflow-hidden">
+        <ul v-else class="shrink-0 rounded-[14px] bg-ios-elevated overflow-hidden">
           <li
             v-for="session in sessions"
             :key="session.name"
-            class="relative flex items-center gap-3 px-4 min-h-[60px] after:absolute after:left-[64px] after:right-0 after:bottom-0 after:h-px after:bg-ios-separator last:after:hidden"
+            class="relative flex items-center gap-3 px-4 py-2 min-h-[60px] after:absolute after:left-4 after:right-0 after:bottom-0 after:h-px after:bg-ios-separator last:after:hidden"
           >
-            <span
-              class="w-[36px] h-[36px] rounded-[9px] flex items-center justify-center shrink-0 text-white"
-              :class="session.status === 'connected' ? 'bg-ios-fill-strong' : 'bg-ios-segment'"
-              aria-hidden="true"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="3" y="4" width="18" height="16" rx="3" />
-                <path d="m7 10 3 2-3 2" />
-                <path d="M12 15h5" />
-              </svg>
-            </span>
             <span class="flex-1 min-w-0 flex flex-col">
-              <span class="text-[17px] text-ios-label truncate" :title="session.name">{{ session.name }}</span>
+              <!-- Named after its Claude Code session when known. No icon, so long names get the room; they wrap at hyphens. -->
+              <span
+                class="text-[17px] leading-[22px] text-ios-label line-clamp-2 break-words"
+                :title="session.claudeSession ? `Claude Code session ${session.claudeSession} (Inspector Jake session ${session.name})` : session.name"
+                data-testid="session-name"
+              >{{ session.claudeSession || session.name }}</span>
               <span class="text-[13px] text-ios-label-secondary">Port {{ session.port }}</span>
             </span>
             <span v-if="session.status === 'connected'" class="text-[15px] text-ios-label-secondary">In Use</span>
