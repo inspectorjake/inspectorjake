@@ -153,6 +153,30 @@ describe('background chat', () => {
     expect(chatEntries()[0].entry).toMatchObject({ role: 'you', attachments: 1 });
   });
 
+  it('keeps small thumbnails with the message and drops anything else', async () => {
+    const ws = await connect();
+    const result = chat.sendChatMessage('Make the changes in my notes.', [
+      { id: 'el-1', src: 'data:image/webp;base64,AAAA', label: '<button>', note: 'Make this bigger' },
+      { id: 'el-2', src: 'https://example.com/tracker.png', label: '<img>' },
+      { id: 'el-3', src: `data:image/webp;base64,${'A'.repeat(70_000)}`, label: '<div>' },
+      { label: 'no id' },
+      'junk',
+    ]);
+    await flush();
+    const frame = ws.sent.find((m) => m.type === 'chat_send');
+    // Thumbnails stay in the panel; Claude gets the captures themselves
+    expect(frame).not.toHaveProperty('thumbnails');
+
+    await ws.receive({ type: 'chat_ack', id: frame.id, ok: true });
+    await result;
+    expect(chatEntries()[0].entry.thumbnails).toEqual([
+      { id: 'el-1', src: 'data:image/webp;base64,AAAA', label: '<button>', note: 'Make this bigger' },
+      { id: 'el-2', src: '', label: '<img>' },
+      { id: 'el-3', src: '', label: '<div>' },
+    ]);
+    expect((sessionStore.get('chatHistory:jake') as any[])[0].thumbnails).toHaveLength(3);
+  });
+
   it('marks the message failed when the server rejects it', async () => {
     const ws = await connect();
     const result = chat.sendChatMessage('hi');

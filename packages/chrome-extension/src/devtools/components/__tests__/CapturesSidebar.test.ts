@@ -52,4 +52,43 @@ describe('CapturesSidebar', () => {
     expect(startEvents?.[0]?.[0]).toMatchObject({ id: 'elem-1', type: 'element' });
     expect(wrapper.emitted('hover-selection-end')).toHaveLength(1);
   });
+
+  describe('Send to Claude', () => {
+    const mountSidebar = (props: Record<string, unknown> = {}) =>
+      shallowMount(CapturesSidebar, {
+        props: {
+          selections: [elementSelection] as any,
+          expandedId: null,
+          isConnected: true,
+          sessions: [],
+          scanning: false,
+          connecting: false,
+          isPicking: false,
+          isCoolingDown: false,
+          sendBlocker: null,
+          ...props,
+        },
+      });
+
+    it('sits under Pick Element and emits when clicked', async () => {
+      const wrapper = mountSidebar();
+      const buttons = wrapper.findAll('button').map((b) => b.text());
+      expect(buttons.indexOf('Send to Claude')).toBe(buttons.indexOf('Pick Element') + 1);
+
+      await wrapper.get('[data-testid="send-to-claude"]').trigger('click');
+      expect(wrapper.emitted('send-to-claude')).toHaveLength(1);
+    });
+
+    it('is disabled with the reason as its tooltip', () => {
+      const button = mountSidebar({ sendBlocker: 'Capture an element or region first.' }).get('[data-testid="send-to-claude"]');
+      expect(button.attributes('disabled')).toBeDefined();
+      expect(button.attributes('title')).toBe('Capture an element or region first.');
+    });
+
+    it('shows progress while the message is sending', () => {
+      const button = mountSidebar({ sending: true }).get('[data-testid="send-to-claude"]');
+      expect(button.text()).toBe('Sending…');
+      expect(button.attributes('disabled')).toBeDefined();
+    });
+  });
 });

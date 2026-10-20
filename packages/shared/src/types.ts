@@ -276,6 +276,17 @@ export type ChatServerMessage =
   | ChatBridgeInfoMessage;
 
 /** One row in the panel's chat history. */
+/** A small preview of a capture that went out with a chat message */
+export interface ChatThumbnail {
+  /** The capture's selection id */
+  id: string;
+  /** Downscaled image as a data URL, or '' when the capture had no image */
+  src: string;
+  /** What was captured, e.g. "<button>" or "Region" */
+  label: string;
+  note?: string;
+}
+
 export interface ChatEntry {
   id: string;
   role: 'you' | 'claude' | 'system';
@@ -284,6 +295,8 @@ export interface ChatEntry {
   fromName?: string;
   /** Number of captures attached to a message you sent */
   attachments?: number;
+  /** Previews of the captures attached to a message you sent */
+  thumbnails?: ChatThumbnail[];
   /** Delivery state of a message you sent */
   status?: 'sending' | 'sent' | 'failed';
   error?: string;

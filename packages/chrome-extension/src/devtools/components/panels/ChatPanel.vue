@@ -4,7 +4,7 @@
  * Every message carries the page plus all captures and their notes.
  */
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
-import type { ChatBridgeInfo, ChatEntry } from '@inspector-jake/shared';
+import type { ChatBridgeInfo, ChatEntry, ChatThumbnail } from '@inspector-jake/shared';
 
 const props = defineProps<{
   messages: ChatEntry[];
@@ -22,6 +22,13 @@ const emit = defineEmits<{
 }>();
 
 const listEl = ref<HTMLElement | null>(null);
+
+/** Thumbnails shown per message; the rest collapse into "+N" */
+const MAX_THUMBNAILS = 4;
+
+function thumbnailTitle(thumb: ChatThumbnail): string {
+  return thumb.note ? `${thumb.label} · “${thumb.note}”` : thumb.label;
+}
 
 const available = computed(() => props.bridgeInfo?.available === true);
 const peerName = computed(() => props.bridgeInfo?.parentName ?? 'Claude');
@@ -128,9 +135,35 @@ function formatTime(ts: number): string {
               {{ message.fromName ?? peerName }}
             </span>
 
-            <!-- Attachment card for what was sent -->
+            <!-- Thumbnails of the captures that went with it -->
+            <div
+              v-if="message.role === 'you' && message.thumbnails?.length"
+              class="flex items-center gap-1.5"
+              role="group"
+              :aria-label="`${message.thumbnails.length} capture${message.thumbnails.length === 1 ? '' : 's'}`"
+              data-testid="chat-thumbnails"
+            >
+              <span
+                v-for="thumb in message.thumbnails.slice(0, MAX_THUMBNAILS)"
+                :key="thumb.id"
+                class="relative w-[44px] h-[44px] rounded-[10px] bg-ios-fill overflow-hidden flex items-center justify-center shadow-[inset_0_0_0_0.5px_var(--color-ios-separator)]"
+                :title="thumbnailTitle(thumb)"
+                data-testid="chat-thumbnail"
+              >
+                <img v-if="thumb.src" :src="thumb.src" :alt="thumb.label" class="w-full h-full object-cover" />
+                <span v-else class="px-1 text-[10px] font-mono text-ios-label-secondary truncate">{{ thumb.label }}</span>
+                <!-- Notes ride along: mark the captures that have one -->
+                <span v-if="thumb.note" class="absolute right-[3px] top-[3px] w-[7px] h-[7px] rounded-full bg-ios-yellow shadow-[0_0_0_1.5px_var(--color-ios-bg)]" aria-hidden="true" />
+              </span>
+              <span
+                v-if="message.thumbnails.length > MAX_THUMBNAILS"
+                class="h-[44px] px-2 rounded-[10px] bg-ios-elevated text-[12px] font-semibold text-ios-label-secondary flex items-center"
+              >+{{ message.thumbnails.length - MAX_THUMBNAILS }}</span>
+            </div>
+
+            <!-- Older messages: a count of what was sent -->
             <span
-              v-if="message.role === 'you' && message.attachments"
+              v-else-if="message.role === 'you' && message.attachments"
               class="flex items-center gap-2 pl-2 pr-3 py-1.5 rounded-[14px] bg-ios-elevated shadow-[inset_0_0_0_0.5px_var(--color-ios-separator)] text-[12px] font-semibold text-ios-label"
             >
               <span class="w-[24px] h-[24px] rounded-[6px] bg-ios-fill text-ios-label-secondary flex items-center justify-center" aria-hidden="true">

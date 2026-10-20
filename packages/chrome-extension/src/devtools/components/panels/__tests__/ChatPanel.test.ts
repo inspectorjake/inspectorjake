@@ -39,6 +39,32 @@ describe('ChatPanel', () => {
     expect(rows[2].text()).toContain('Held for approval');
   });
 
+  it('shows thumbnails of what was sent, marking captures with notes', () => {
+    const thumbnails = [
+      { id: 'a', src: 'data:image/webp;base64,AAAA', label: '<button>', note: 'Make it orange' },
+      { id: 'b', src: '', label: 'Region' },
+      { id: 'c', src: 'data:image/webp;base64,BBBB', label: '<h1>' },
+      { id: 'd', src: 'data:image/webp;base64,CCCC', label: '<nav>' },
+      { id: 'e', src: 'data:image/webp;base64,DDDD', label: '<img>' },
+    ];
+    const wrapper = mountPanel({
+      messages: [{ id: '1', role: 'you', text: 'Make the changes in my notes.', ts: 0, attachments: 5, thumbnails, status: 'sent' }],
+    });
+
+    const group = wrapper.get('[data-testid="chat-thumbnails"]');
+    expect(group.attributes('aria-label')).toBe('5 captures');
+    const tiles = group.findAll('[data-testid="chat-thumbnail"]');
+    expect(tiles).toHaveLength(4);
+    expect(tiles[0].get('img').attributes('src')).toBe('data:image/webp;base64,AAAA');
+    expect(tiles[0].attributes('title')).toBe('<button> · “Make it orange”');
+    // No image: the label stands in
+    expect(tiles[1].find('img').exists()).toBe(false);
+    expect(tiles[1].text()).toBe('Region');
+    expect(group.text()).toContain('+1');
+    // Thumbnails replace the count pill
+    expect(wrapper.get('[data-testid="chat-message"]').text()).not.toContain('5 captures');
+  });
+
   it('shows why a message was not sent', () => {
     const wrapper = mountPanel({
       messages: [{ id: '1', role: 'you', text: 'hi', ts: 0, status: 'failed', error: 'session is gone' }],

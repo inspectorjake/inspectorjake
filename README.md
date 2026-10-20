@@ -65,6 +65,8 @@ The Inspector Jake DevTools panel is your workspace for capturing elements, anno
 
 Switch to **Chat** and send a message straight to the Claude Code session that started the MCP server. Every message carries the page plus all your captures and their notes, and Claude's reply shows up in the panel. Replies that arrive while DevTools is closed are kept for when you reopen it.
 
+Or skip the typing: **Send to Claude**, under Pick Element, switches to Chat and sends "Make the changes in my notes." with every capture. Each message you send shows thumbnails of the captures that went with it.
+
 Chat uses Claude Code's cross-session messaging, so the panel shows up as its own session (for example `jake-panel`) that Claude replies to. It works on macOS, Linux and Windows. Claude treats panel messages like a teammate's request: it acts on them, but never counts them as your approval for anything pending.
 
 ### Jake's Notes

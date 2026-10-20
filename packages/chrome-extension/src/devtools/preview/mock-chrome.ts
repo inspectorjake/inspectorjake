@@ -142,6 +142,7 @@ async function handleSendMessage(message: { type: string; [key: string]: unknown
         text: String(message.text).trim(),
         ts: Date.now(),
         attachments: mockChat.captureCount,
+        ...(Array.isArray(message.thumbnails) && { thumbnails: message.thumbnails }),
         status: 'sending',
       };
       upsertChatEntry(entry);
