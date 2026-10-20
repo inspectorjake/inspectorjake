@@ -3,7 +3,7 @@
  * ChatPanel - Conversation with the Claude Code session the MCP server is attached to.
  * Every message carries the page plus all captures and their notes.
  */
-import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import type { ChatBridgeInfo, ChatEntry, ChatThumbnail } from '@inspector-jake/shared';
 
 const props = defineProps<{
@@ -26,6 +26,9 @@ const listEl = ref<HTMLElement | null>(null);
 /** Thumbnails shown per message; the rest collapse into "+N" */
 const MAX_THUMBNAILS = 4;
 
+/** How long Claude shows as typing after a message lands. It may finish without replying. */
+const REPLY_WAIT_MS = 10 * 60 * 1000;
+
 function thumbnailTitle(thumb: ChatThumbnail): string {
   return thumb.note ? `${thumb.label} · “${thumb.note}”` : thumb.label;
 }
@@ -33,6 +36,28 @@ function thumbnailTitle(thumb: ChatThumbnail): string {
 const available = computed(() => props.bridgeInfo?.available === true);
 const peerName = computed(() => props.bridgeInfo?.parentName ?? 'Claude');
 const canSend = computed(() => available.value && !props.sending && props.draft.trim().length > 0);
+
+// Claude is "typing" from the moment your message is delivered until anything follows it:
+// a reply, or a notice such as "held for approval"
+const now = ref(Date.now());
+let waitTimer: ReturnType<typeof setTimeout> | undefined;
+
+const waitingSince = computed(() => {
+  const last = props.messages[props.messages.length - 1];
+  return last?.role === 'you' && last.status === 'sent' ? last.ts : null;
+});
+const awaitingReply = computed(
+  () => available.value && waitingSince.value !== null && now.value - waitingSince.value < REPLY_WAIT_MS
+);
+
+watch(waitingSince, (since) => {
+  clearTimeout(waitTimer);
+  now.value = Date.now();
+  if (since !== null) {
+    waitTimer = setTimeout(() => (now.value = Date.now()), since + REPLY_WAIT_MS - now.value);
+  }
+}, { immediate: true });
+onUnmounted(() => clearTimeout(waitTimer));
 
 const attachmentsLabel = computed(() => {
   if (props.captureCount === 0) return 'No captures attached';
@@ -48,6 +73,7 @@ async function scrollToBottom(): Promise<void> {
 }
 
 watch(() => props.messages.length, scrollToBottom);
+watch(awaitingReply, (waiting) => waiting && scrollToBottom());
 onMounted(scrollToBottom);
 
 function submit(): void {
@@ -67,7 +93,8 @@ function formatTime(ts: number): string {
 </script>
 
 <template>
-  <section class="flex-1 flex flex-col min-h-0 min-w-0 bg-ios-bg" data-testid="chat-panel">
+  <section class="flex-1 flex flex-col min-h-0 min-w-0 bg-ios-bg overflow-y-auto custom-scrollbar" data-testid="chat-panel">
+    <!-- Fits the pane, so the log scrolls; in a short window the log keeps its minimum and the pane scrolls -->
     <div class="flex-1 w-full max-w-[880px] mx-auto px-4 flex flex-col min-h-0">
       <!-- Contact header -->
       <div class="flex flex-col items-center gap-1 pt-4 pb-2 shrink-0 text-center">
@@ -99,7 +126,7 @@ function formatTime(ts: number): string {
       </div>
 
       <!-- Messages -->
-      <div ref="listEl" role="log" aria-label="Conversation" class="flex-1 py-2 overflow-y-auto custom-scrollbar flex flex-col gap-1">
+      <div ref="listEl" role="log" aria-label="Conversation" class="flex-1 min-h-[160px] py-2 overflow-y-auto custom-scrollbar flex flex-col gap-1">
         <div
           v-if="messages.length === 0"
           class="m-auto max-w-xs text-center flex flex-col items-center gap-1.5"
@@ -188,6 +215,25 @@ function formatTime(ts: number): string {
             </span>
           </div>
         </template>
+
+        <!-- Claude is working on it -->
+        <div
+          v-if="awaitingReply"
+          class="self-start flex flex-col items-start gap-1 mt-1.5"
+          role="status"
+          :aria-label="`${peerName} is typing`"
+          data-testid="chat-typing"
+        >
+          <span class="text-[12px] text-ios-label-secondary pl-3.5" aria-hidden="true">{{ peerName }}</span>
+          <div class="h-[36px] px-3.5 rounded-[18px] rounded-bl-[5px] bg-ios-fill flex items-center gap-[5px]" aria-hidden="true">
+            <span
+              v-for="dot in 3"
+              :key="dot"
+              class="w-[8px] h-[8px] rounded-full bg-ios-label-secondary animate-typing-dot motion-reduce:animate-none"
+              :style="{ animationDelay: `${(dot - 1) * 0.18}s` }"
+            />
+          </div>
+        </div>
       </div>
 
       <!-- Composer -->

@@ -7,7 +7,6 @@ import type { ToolType } from '@inspector-jake/shared';
 import { nameToPort } from '@inspector-jake/shared';
 import type { WsServerInstance } from './ws-server.js';
 import { createWsServer } from './ws-server.js';
-import { bridgeNameFor } from './session-bridge.js';
 import type { SessionState } from './server.js';
 import type { ToolResult, SelectionData } from './response-builder.js';
 import {
@@ -33,20 +32,30 @@ export const toolDefs: ToolDef[] = [
   {
     name: 'see_jakes_notes',
     description:
-      'Get all user selections from the DevTools panel. Returns an array of selections - either element selections (with selector metadata, use view_image_in_jakes_notes to see the screenshot) or screenshot selections (with full image data inline). Selections may include user notes, change requests, or comments about specific selected items.',
+      'Get all user selections from the DevTools panel. Returns an array of selections - either element selections (with selector metadata, use view_image_in_jakes_notes to see the screenshot) or screenshot selections (with full image data inline). Selections may include user notes, change requests, or comments about specific selected items. If the panel cleared captures after you read them, calling this again returns that same batch, marked as already seen.',
     inputSchema: {
       type: 'object' as const,
       properties: {},
       required: [],
     },
     handleResult(response) {
-      const result = response.result as { selections: SelectionData[] };
+      const result = response.result as { selections: SelectionData[]; alreadySeen?: boolean };
       if (!result.selections?.length) {
         return jsonResponse({
           message: 'No selections. Use the DevTools panel to click on elements or drag to capture regions.',
         });
       }
-      return { content: renderSelections(result.selections) };
+      const content = renderSelections(result.selections);
+      if (result.alreadySeen) {
+        // The panel auto-clears captures once read; these are still what the user asked about
+        content.unshift({
+          type: 'text',
+          text:
+            'No new captures. These are the ones you already saw; the panel cleared them after you read them ' +
+            '("Clear after Claude sees them" is on).',
+        });
+      }
+      return { content };
     },
   },
   {
@@ -224,7 +233,7 @@ export const toolDefs: ToolDef[] = [
 
       state.wsServer = newWsServer;
       state.sessionInfo = { sessionName: newName, port: newPort };
-      state.bridge.rename(bridgeNameFor(newName));
+      state.bridge.rename(newName);
 
       log.info('Tool', `Session renamed: ${oldName}:${oldPort} -> ${newName}:${newPort}`);
 

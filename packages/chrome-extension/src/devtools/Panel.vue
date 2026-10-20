@@ -120,6 +120,12 @@ async function handleSendToClaude(): Promise<void> {
 const error = computed(() => connectionError.value || pickerError.value);
 const hasLogErrors = computed(() => logs.value.some(l => l.level === LogLevel.ERROR));
 const noteCount = computed(() => selections.value.filter(s => s.note?.trim()).length);
+// The server's live info wins; until it arrives, the name seen when scanning
+const claudeSessionName = computed(() =>
+  chatBridgeInfo.value?.parentName ??
+  sessions.value.find((s) => s.name === connectedSessionName.value)?.claudeSession ??
+  null
+);
 const sendBlocker = computed(() => {
   if (chatBridgeInfo.value?.available !== true) {
     return chatBridgeInfo.value?.reason ?? 'Chat with Claude is unavailable for this session.';
@@ -307,6 +313,7 @@ onUnmounted(() => {
     <AppHeader
       :is-connected="isConnected"
       :session-name="connectedSessionName"
+      :claude-session="claudeSessionName"
       :connecting="connecting"
       :is-picking="isPicking"
       :is-cooling-down="isCoolingDown"

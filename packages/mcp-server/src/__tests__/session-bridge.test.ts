@@ -27,6 +27,7 @@ import {
   type InboundChat,
   type SessionBridge,
 } from '../session-bridge.js';
+import type { ChatBridgeInfo } from '@inspector-jake/shared';
 
 describe('wire format', () => {
   it('builds Claude Code socket addresses', () => {
@@ -100,8 +101,11 @@ describe('wire format', () => {
     expect(parseFrameLine('not json')).toBeNull();
   });
 
-  it('derives bridge names from session names', () => {
+  it('derives bridge names from the Claude Code session, else the MCP session', () => {
+    expect(bridgeNameFor('jake', 'inspector-jake-de')).toBe('inspector-jake-de-panel');
+    expect(bridgeNameFor('jake', 'Demo Video!')).toBe('demo-video-panel');
     expect(bridgeNameFor('jake')).toBe('jake-panel');
+    expect(bridgeNameFor('jake', '***')).toBe('jake-panel');
     expect(bridgeNameFor('My Session!')).toBe('my-session-panel');
     expect(bridgeNameFor('***')).toBe('jake-panel');
   });
@@ -112,7 +116,7 @@ describe('createSessionBridge availability', () => {
 
   it('is unavailable outside a Claude Code session', async () => {
     const bridge = await createSessionBridge({
-      name: 'jake-panel',
+      sessionName: 'jake',
       version: 'test',
       onInbound: noop,
       onStatus: noop,
@@ -125,7 +129,7 @@ describe('createSessionBridge availability', () => {
 
   it('is unavailable on platforms Claude Code messaging does not run on', async () => {
     const bridge = await createSessionBridge({
-      name: 'jake-panel',
+      sessionName: 'jake',
       version: 'test',
       onInbound: noop,
       onStatus: noop,
@@ -204,6 +208,7 @@ describe('createSessionBridge round trip', () => {
   let bridge: SessionBridge;
   let inbound: InboundChat[];
   let statuses: DeliveryStatus[];
+  let infoChanges: ChatBridgeInfo[];
 
   const registryDir = () => path.join(dir, 'config', 'sessions');
   const bridgeSocket = () => path.join(dir, `${FAKE_PID}.sock`);
@@ -230,6 +235,7 @@ describe('createSessionBridge round trip', () => {
     parentFrames = [];
     inbound = [];
     statuses = [];
+    infoChanges = [];
 
     parentServer = net.createServer((conn) => {
       let data = '';
@@ -245,10 +251,12 @@ describe('createSessionBridge round trip', () => {
     );
 
     bridge = await createSessionBridge({
-      name: 'jake-panel',
+      sessionName: 'jake',
       version: '9.9.9',
       onInbound: (m) => inbound.push(m),
       onStatus: (s) => statuses.push(s),
+      onInfoChange: (info) => infoChanges.push(info),
+      parentNamePollMs: 20,
       env: { CLAUDE_CODE_MESSAGING_SOCKET: parentSocket, CLAUDE_CONFIG_DIR: path.join(dir, 'config') },
       platform: 'darwin',
       pid: FAKE_PID,
@@ -263,7 +271,7 @@ describe('createSessionBridge round trip', () => {
   });
 
   it('registers itself without a kind so Claude Code does not treat it as an open session', () => {
-    expect(bridge.info()).toEqual({ available: true, name: 'jake-panel', parentName: 'inspector-jake-de' });
+    expect(bridge.info()).toEqual({ available: true, name: 'inspector-jake-de-panel', parentName: 'inspector-jake-de' });
 
     const record = JSON.parse(fs.readFileSync(registryFile(), 'utf8'));
     expect(record).toMatchObject({
@@ -273,12 +281,32 @@ describe('createSessionBridge round trip', () => {
       version: 'inspector-jake-mcp@9.9.9',
       peerProtocol: 1,
       messagingSocketPath: bridgeSocket(),
-      name: 'jake-panel',
+      name: 'inspector-jake-de-panel',
       nameSource: 'user',
       status: 'idle',
     });
     expect(record).not.toHaveProperty('kind');
     expect(fs.statSync(bridgeSocket()).mode & 0o777).toBe(0o600);
+  });
+
+  const renameParent = (name: string) =>
+    fs.writeFileSync(
+      path.join(registryDir(), '111.json'),
+      JSON.stringify({ pid: 111, name, messagingSocketPath: parentSocket })
+    );
+
+  it('follows the Claude Code session when it is renamed', async () => {
+    renameParent('demo-video');
+    await waitFor(() => infoChanges.length === 1);
+    expect(infoChanges[0]).toEqual({ available: true, name: 'demo-video-panel', parentName: 'demo-video' });
+    expect(JSON.parse(fs.readFileSync(registryFile(), 'utf8')).name).toBe('demo-video-panel');
+  });
+
+  it('adds the MCP session name when another session already has the name', async () => {
+    fs.writeFileSync(path.join(registryDir(), '222.json'), JSON.stringify({ pid: 222, name: 'demo-video-panel' }));
+    renameParent('demo-video');
+    await waitFor(() => infoChanges.length === 1);
+    expect(bridge.info().name).toBe('demo-video-jake-panel');
   });
 
   it('sends a frame to the parent session with its own reply address', async () => {
@@ -289,7 +317,7 @@ describe('createSessionBridge round trip', () => {
     expect(frame.from).toBe(`uds:${bridgeSocket()}`);
     expect(parseWrapper(frame.message.content)).toEqual({
       from: `uds:${bridgeSocket()}`,
-      fromName: 'jake-panel',
+      fromName: 'inspector-jake-de-panel',
       body: 'what did I select?',
     });
   });
@@ -323,8 +351,17 @@ describe('createSessionBridge round trip', () => {
     expect(inbound[0].text).toBe('no newline');
   });
 
-  it('re-registers under a new name', () => {
-    bridge.rename('annie-panel');
+  it('keeps its Claude Code name when the MCP session is renamed', () => {
+    bridge.rename('annie');
+    expect(bridge.info().name).toBe('inspector-jake-de-panel');
+  });
+
+  it('is named after the MCP session while the Claude Code session has no name', async () => {
+    fs.rmSync(path.join(registryDir(), '111.json'));
+    await waitFor(() => infoChanges.length === 1);
+    expect(bridge.info().name).toBe('jake-panel');
+
+    bridge.rename('annie');
     expect(JSON.parse(fs.readFileSync(registryFile(), 'utf8')).name).toBe('annie-panel');
     expect(bridge.info().name).toBe('annie-panel');
   });
@@ -343,7 +380,7 @@ describe('createSessionBridge on Linux', () => {
     const dir = fs.mkdtempSync('/tmp/ijb-');
     const parentSocket = path.join(dir, 'parent.sock');
     const bridge = await createSessionBridge({
-      name: 'jake-panel',
+      sessionName: 'jake',
       version: '9.9.9',
       onInbound: () => {},
       onStatus: () => {},
@@ -404,7 +441,7 @@ describe('createSessionBridge on Windows', () => {
     await new Promise<void>((resolve) => parentServer.listen(parentSocket, resolve));
 
     bridge = await createSessionBridge({
-      name: 'jake-panel',
+      sessionName: 'jake',
       version: '9.9.9',
       onInbound: (m) => inbound.push(m),
       onStatus: () => {},

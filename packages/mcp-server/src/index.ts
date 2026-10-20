@@ -10,7 +10,7 @@ import { createRequire } from 'module';
 import { randomUUID } from 'crypto';
 import { createMcpServer, type SessionState } from './server.js';
 import { createWsServer, type WsServerHooks } from './ws-server.js';
-import { createSessionBridge, bridgeNameFor } from './session-bridge.js';
+import { createSessionBridge } from './session-bridge.js';
 import { buildChatBody } from './response-builder.js';
 import { nameToPort, SESSION_NAMES, type SessionName } from '@inspector-jake/shared';
 import { log } from './logger.js';
@@ -102,7 +102,7 @@ async function main() {
   log.info('Main', 'Waiting for browser connection...');
 
   const bridge = await createSessionBridge({
-    name: bridgeNameFor(sessionName),
+    sessionName,
     version: readVersion(),
     onInbound: (message) =>
       state?.wsServer.pushToClient({
@@ -120,6 +120,7 @@ async function main() {
         ...(status.reason && { reason: status.reason }),
         ts: Date.now(),
       }),
+    onInfoChange: (info) => state?.wsServer.pushToClient({ type: 'chat_bridge_info', ...info }),
   });
 
   state = { wsServer, sessionInfo: { sessionName, port }, wsHooks, bridge };

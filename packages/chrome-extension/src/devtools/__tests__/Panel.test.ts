@@ -29,6 +29,8 @@ const mocks = vi.hoisted(() => ({
   chatHandleBridgeInfo: vi.fn(),
   selections: { value: [] as unknown[], __v_isRef: true },
   bridgeInfo: { value: null as unknown, __v_isRef: true },
+  sessions: { value: [] as unknown[], __v_isRef: true },
+  connectedSessionName: { value: null as string | null, __v_isRef: true },
 }));
 
 let runtimeListener: ((message: { type: string; [key: string]: unknown }) => unknown) | null = null;
@@ -38,6 +40,7 @@ const panelStubs = {
     props: [
       'isConnected',
       'sessionName',
+      'claudeSession',
       'connecting',
       'isPicking',
       'isCoolingDown',
@@ -112,13 +115,13 @@ vi.mock('../composables/index.js', () => ({
     syncSelectionsToBackground: mocks.syncSelectionsToBackground,
   }),
   useConnection: () => ({
-    sessions: ref([]),
+    sessions: mocks.sessions,
     scanning: ref(false),
     connecting: ref(false),
     connectionStatus: ref({ connected: false }),
     error: ref<string | null>(null),
     isConnected: mocks.isConnected,
-    connectedSessionName: ref<string | null>(null),
+    connectedSessionName: mocks.connectedSessionName,
     scanForSessions: mocks.scanForSessions,
     getConnectionStatus: mocks.getConnectionStatus,
     connectToSession: mocks.connectToSession,
@@ -296,6 +299,8 @@ describe('Panel chat view', () => {
     mocks.isConnected.value = true;
     mocks.selections.value = [];
     mocks.bridgeInfo.value = null;
+    mocks.sessions.value = [];
+    mocks.connectedSessionName.value = null;
     runtimeListener = null;
 
     vi.stubGlobal('chrome', {
@@ -395,5 +400,18 @@ describe('Panel chat view', () => {
     const bridgeInfo = { available: true, name: 'jake-panel' };
     await runtimeListener?.({ type: 'CHAT_BRIDGE_INFO', sessionName: 'jake', bridgeInfo });
     expect(mocks.chatHandleBridgeInfo).toHaveBeenCalledWith({ bridgeInfo });
+  });
+
+  it('names the session after its Claude Code session, live from the server or else from the scan', () => {
+    mocks.connectedSessionName.value = 'jake';
+    mocks.sessions.value = [{ name: 'jake', port: 52192, status: 'ready', claudeSession: 'from-scan' }];
+    expect(mountPanel().getComponent(panelStubs.AppHeader).props('claudeSession')).toBe('from-scan');
+
+    mocks.bridgeInfo.value = { available: true, name: 'jake-panel', parentName: 'renamed-live' };
+    expect(mountPanel().getComponent(panelStubs.AppHeader).props('claudeSession')).toBe('renamed-live');
+
+    mocks.bridgeInfo.value = null;
+    mocks.sessions.value = [];
+    expect(mountPanel().getComponent(panelStubs.AppHeader).props('claudeSession')).toBeNull();
   });
 });

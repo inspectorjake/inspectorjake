@@ -90,6 +90,25 @@ describe('createWsServer', () => {
     });
   });
 
+  it('names the Claude Code session in discovery responses', async () => {
+    await start({ getChatBridgeInfo: () => ({ available: true, name: 'jake-panel', parentName: 'main' }) });
+    server!.setSessionName('jake');
+    expect(server!.getDiscoveryInfo()).toEqual({ name: 'jake', status: 'ready', claudeSession: 'main' });
+
+    const ws = new WebSocket(`ws://127.0.0.1:${server!.port}/discovery`, { origin: EXTENSION_ORIGIN });
+    clients.push(ws);
+    const reply = await new Promise<any>((resolve, reject) => {
+      ws.once('message', (data) => resolve(JSON.parse(data.toString())));
+      ws.once('error', reject);
+    });
+    expect(reply).toEqual({ name: 'jake', status: 'ready', claudeSession: 'main' });
+  });
+
+  it('leaves the Claude Code session out of discovery when it is unknown', async () => {
+    await start({ getChatBridgeInfo: () => ({ available: false, reason: 'no messaging' }) });
+    expect(server!.getDiscoveryInfo()).not.toHaveProperty('claudeSession');
+  });
+
   it('relays chat_send to the hook and acknowledges it', async () => {
     const onChatSend = vi.fn().mockResolvedValue(undefined);
     await start({ onChatSend });

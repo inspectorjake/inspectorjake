@@ -13,6 +13,7 @@ export {
   updateSelections,
   getSelections,
   clearSelections,
+  forgetSeenSelections,
   updateAttachedSnapshots,
   getAttachedSnapshots,
   clearAttachedSnapshots,

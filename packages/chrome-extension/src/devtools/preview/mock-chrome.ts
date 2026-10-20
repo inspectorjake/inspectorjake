@@ -148,7 +148,8 @@ async function handleSendMessage(message: { type: string; [key: string]: unknown
       upsertChatEntry(entry);
       await new Promise((r) => setTimeout(r, 300));
       upsertChatEntry({ ...entry, status: 'sent' });
-      setTimeout(() => simulateChatReply(), 1200);
+      // Long enough to see Claude typing
+      setTimeout(() => simulateChatReply(), 2500);
       return { ok: true };
     }
 

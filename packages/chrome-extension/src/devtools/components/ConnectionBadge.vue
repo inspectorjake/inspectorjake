@@ -1,13 +1,25 @@
 <script setup lang="ts">
 /**
  * ConnectionBadge - iOS capsule showing the connected session, with a disconnect button.
+ * Names it after its Claude Code session when that is known, else by its Inspector Jake name.
  */
 
-defineProps<{
+import { computed } from 'vue'
+
+const props = defineProps<{
   isConnected: boolean
   sessionName: string | null
+  /** Name of the Claude Code session the MCP server belongs to, when known */
+  claudeSession?: string | null
   connecting: boolean
 }>()
+
+const displayName = computed(() => props.claudeSession || props.sessionName)
+const title = computed(() =>
+  props.claudeSession
+    ? `Connected to Claude Code session ${props.claudeSession} (Inspector Jake session ${props.sessionName})`
+    : `Connected to ${props.sessionName}`
+)
 
 const emit = defineEmits<{
   disconnect: []
@@ -20,13 +32,15 @@ const emit = defineEmits<{
     <template v-if="isConnected">
       <span
         class="h-[30px] px-3 rounded-full bg-ios-green/15 text-ios-green text-[13px] font-semibold flex items-center gap-1.5 whitespace-nowrap"
-        :title="`Connected to ${sessionName}`"
+        :title="title"
+        data-testid="connection-badge"
       >
         <span class="relative flex h-[7px] w-[7px]">
           <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-ios-green opacity-60"></span>
           <span class="relative inline-flex rounded-full h-[7px] w-[7px] bg-ios-green"></span>
         </span>
-        <span class="sr-only">Connected to </span>{{ sessionName }}
+        <span class="sr-only">Connected to </span>
+        <span class="truncate max-w-[26ch]" data-testid="connection-name">{{ displayName }}</span>
       </span>
       <button
         class="w-[30px] h-[30px] rounded-full flex items-center justify-center bg-ios-fill text-ios-label-secondary hover:text-ios-red transition-colors"

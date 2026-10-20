@@ -27,6 +27,7 @@ import {
   markDevToolsClosed,
   updateAttachedSnapshots,
   updateSelections,
+  forgetSeenSelections,
   captureElementScreenshot,
 } from './tool-handlers.js';
 import type { ElementInfo, SessionName } from '@inspector-jake/shared';
@@ -63,6 +64,8 @@ async function handleMessage(
 
     case 'CONNECT_SESSION': {
       const { sessionName, port, tabId } = message;
+      // Captures one Claude session already read are not another session's to see
+      if (getConnectionStatus().sessionName !== sessionName) forgetSeenSelections();
       try {
         await connectToSession(sessionName as SessionName, port, tabId);
         // Initialize computed styles mode on the content script
@@ -85,6 +88,7 @@ async function handleMessage(
     }
 
     case 'DISCONNECT_SESSION': {
+      forgetSeenSelections();
       disconnectSession();
       return { success: true };
     }

@@ -58,6 +58,25 @@ export function clearSelections(): void {
   storedSelections = [];
 }
 
+// The batch Claude last read before auto-clear emptied the panel. Claude often asks again
+// while it works (a note, a selector, the styles), so it gets these back instead of nothing.
+let seenSelections: Selection[] = [];
+
+/** Clear the panel's selections once Claude has read them, keeping them for Claude's follow-ups. */
+export function clearSeenSelections(): void {
+  seenSelections = storedSelections;
+  storedSelections = [];
+}
+
+export function getSeenSelections(): Selection[] {
+  return seenSelections;
+}
+
+/** Drop the batch Claude saw, e.g. when connecting to a different session. */
+export function forgetSeenSelections(): void {
+  seenSelections = [];
+}
+
 /**
  * Get a cached selection image by ID.
  * Cache survives selection list clearing for session-lifetime lookup by imageId.

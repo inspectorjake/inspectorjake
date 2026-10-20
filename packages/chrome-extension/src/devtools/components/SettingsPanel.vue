@@ -223,7 +223,7 @@ function onKeydown(e: KeyboardEvent): void {
             />
           </label>
           <p class="px-4 text-[12px] text-ios-label-secondary">
-            Clears your captures right after <code class="font-mono">see_jakes_notes</code> is called.
+            Clears your captures right after <code class="font-mono">see_jakes_notes</code> is called. Claude can still look them up while it works on them.
           </p>
         </section>
 

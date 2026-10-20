@@ -67,7 +67,7 @@ Switch to **Chat** and send a message straight to the Claude Code session that s
 
 Or skip the typing: **Send to Claude**, under Pick Element, switches to Chat and sends "Make the changes in my notes." with every capture. Each message you send shows thumbnails of the captures that went with it.
 
-Chat uses Claude Code's cross-session messaging, so the panel shows up as its own session (for example `jake-panel`) that Claude replies to. It works on macOS, Linux and Windows. Claude treats panel messages like a teammate's request: it acts on them, but never counts them as your approval for anything pending.
+Chat uses Claude Code's cross-session messaging, so the panel shows up as its own session that Claude replies to, named after your Claude Code session (for example `my-project-panel`). It works on macOS, Linux and Windows. Claude treats panel messages like a teammate's request: it acts on them, but never counts them as your approval for anything pending.
 
 ### Jake's Notes
 
