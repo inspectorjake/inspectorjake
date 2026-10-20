@@ -1,0 +1,31 @@
+{
+  "duration": 25.1,
+  "music": {"file": "music", "gain_db": -6, "crossfade": 0.012, "segments": [[0, 17.159], [12.874, 17.159], [17.159, null]], "fade_out_at": 24.4, "fade_out": 0.7, "why": "take 1 resolves at 17.17 s (bar 8 at 112 BPM); bars 6-7 play twice so the final chord lands at 21.46 s, after the end-card title"},
+  "loudness": {"lufs": -16, "true_peak": -1.5},
+  "cues": [
+    {"at": 0.66, "sound": "tick-2", "gain_db": -10.5, "why": "picker box snaps to the headline"},
+    {"at": 1.52, "sound": "tick-2", "gain_db": -10.5, "why": "picker box snaps to the button"},
+    {"at": 2.11, "sound": "click-2", "gain_db": -9.4, "length": 0.2, "why": "click captures the button"},
+    {"at": 2.52, "sound": "swoosh-1", "gain_db": -11.5, "length": 0.8, "why": "the box flies into the sidebar"},
+    {"at": 3.1, "sound": "pop-1", "gain_db": -6.9, "why": "the capture card lands"},
+    {"at": 5.03, "sound": "click-2", "gain_db": -9.4, "length": 0.2, "why": "click into Jake's Notes"},
+    {"at": 5.15, "sound": "thock-1", "gain_db": -8.4, "length": 1.7, "why": "typing the first note (thocky keys)"},
+    {"at": 7.53, "sound": "click-2", "gain_db": -9.4, "length": 0.2, "why": "Pick Element"},
+    {"at": 8.15, "sound": "click-2", "gain_db": -9.4, "length": 0.2, "why": "click captures the headline"},
+    {"at": 8.3, "sound": "swoosh-1", "gain_db": -11.5, "length": 0.7, "why": "the second capture flies in"},
+    {"at": 8.75, "sound": "pop-1", "gain_db": -6.9, "why": "the second card lands"},
+    {"at": 9.35, "sound": "click-2", "gain_db": -9.4, "length": 0.2, "why": "click into Jake's Notes"},
+    {"at": 9.42, "sound": "thock-1", "gain_db": -8.4, "from": 0.85, "length": 0.65, "why": "typing the second note (a later stretch of the same take)"},
+    {"at": 10.98, "sound": "click-2", "gain_db": -9.4, "length": 0.2, "why": "Send to Claude"},
+    {"at": 11.08, "sound": "toggle-1", "gain_db": -7.6, "why": "the panel slides to Chat"},
+    {"at": 11.62, "sound": "sent-1", "gain_db": -3.9, "why": "the message goes out with its thumbnails"},
+    {"at": 13.04, "sound": "whip-1", "gain_db": -7.1, "why": "whip to the terminal"},
+    {"at": 13.66, "sound": "blips-2", "gain_db": -17.9, "length": 1.95, "why": "the terminal fills in"},
+    {"at": 14.62, "sound": "chime-2", "gain_db": -11.5, "why": "Update finished"},
+    {"at": 15.6, "sound": "chime-2", "gain_db": -11.5, "why": "SendMessage finished"},
+    {"at": 16.08, "sound": "whip-2", "gain_db": -7.1, "why": "whip back to the page"},
+    {"at": 16.92, "sound": "sparkle-2", "gain_db": -15.1, "why": "the headline and button update"},
+    {"at": 17.88, "sound": "received-2", "gain_db": -9.6, "why": "Claude's reply arrives"},
+    {"at": 20.4, "sound": "reveal-2", "gain_db": -10.0, "why": "the logo reveal: a soft swell into a bell chime as Jake rises"}
+  ]
+}

@@ -1,0 +1,908 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Inspector Jake demo</title>
+<!--
+  The README demo, as a page. A paused GSAP timeline drives everything; window.seek(t) draws time t and
+  window.DURATION is the length. Open it with ?t=12.5 to see one moment, or ?play to watch it in real time.
+  Render with tools/render_stream.py (see README.md in this folder).
+-->
+<style>
+  :root {
+    --elev: #1c1c1e; --fill: #2c2c2e; --fill2: #3a3a3c; --sep: #38383a; --seg: #636366;
+    --label2: #98989f; --label3: #8e8e93; --ph: #636366;
+    --green: #30d158; --red: #ff453a; --yellow: #ffd60a; --tint: #0a84ff;
+    --pick: #22c55e; --brand: #2563eb;
+    --ui: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+    --display: -apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+  body { font-family: var(--ui); color: #fff; -webkit-font-smoothing: antialiased; }
+  #stage { position: absolute; inset: 0; overflow: hidden; background: #000; }
+  .abs { position: absolute; }
+
+  /* ---- backdrop: a dot grid at 0.3 parallax and a soft blue key light ---- */
+  #bg { position: absolute; left: -1200px; top: -1200px; width: 5200px; height: 4000px;
+        background-image: radial-gradient(rgba(255, 255, 255, .085) 1.3px, transparent 1.7px);
+        background-size: 34px 34px; }
+  #glow { position: absolute; inset: 0;
+          background: radial-gradient(1000px 760px at 66% 50%, rgba(10, 132, 255, .17), transparent 72%); }
+
+  /* ---- the world: everything the camera looks at, in CSS px ---- */
+  #world { position: absolute; left: 0; top: 0; width: 10px; height: 10px; transform-origin: 0 0; }
+  /* windows use macOS light-mode chrome, so they stand apart from the black backdrop; their contents stay dark */
+  .win { position: absolute; border-radius: 14px; overflow: hidden; background: #f6f6f7;
+         box-shadow: 0 0 0 1px rgba(255, 255, 255, .3), 0 40px 120px rgba(0, 0, 0, .7), 0 12px 40px rgba(0, 0, 0, .5); }
+  .tl { position: absolute; z-index: 2; top: 16px; width: 12px; height: 12px; border-radius: 50%; box-shadow: inset 0 0 0 .5px rgba(0, 0, 0, .2); }
+  .tl.r { left: 18px; background: #ff5f57; } .tl.y { left: 38px; background: #febc2e; } .tl.g { left: 58px; background: #28c840; }
+
+  /* browser */
+  #browser { left: 0; top: 0; width: 1280px; height: 1080px; }
+  .tabbar { position: absolute; left: 0; top: 0; right: 0; height: 44px; background: #e1e1e4; }
+  .tab { position: absolute; left: 92px; top: 8px; width: 250px; height: 36px; border-radius: 10px 10px 0 0;
+         background: #f6f6f7; display: flex; align-items: center; gap: 9px; padding: 0 12px; font-size: 13px; color: #1d1d1f; }
+  .tab .fav { width: 16px; height: 16px; border-radius: 4px; flex: none; object-fit: cover; object-position: 50% 0; background: #ffedd5; }
+  .tab em { margin-left: auto; font-style: normal; color: #6e6e73; }
+  .toolbar { position: absolute; left: 0; top: 44px; right: 0; height: 44px; background: #f6f6f7; border-bottom: 1px solid #d4d4d8;
+             display: flex; align-items: center; padding: 0 14px; gap: 16px; color: #6e6e73; font-size: 19px; }
+  .omni { flex: 1; height: 30px; border-radius: 15px; background: #e8e8eb; display: flex; align-items: center;
+          gap: 10px; padding: 0 14px; font-size: 14px; color: #1d1d1f; }
+  .omni i { font-style: normal; color: #6e6e73; font-size: 13px; }
+  .extbtn { width: 22px; height: 22px; border-radius: 50%; background: linear-gradient(135deg, #4a90d9, #1e5799);
+            display: grid; place-items: center; }
+
+  /* the demo page: a light landing page for Inspector Jake, served by its dev server */
+  #vp { position: absolute; left: 0; top: 88px; width: 1280px; height: 420px; overflow: hidden; background: #fff;
+        font-family: var(--ui); color: #0f172a; }
+  .lp-nav { position: absolute; left: 0; top: 0; width: 1280px; height: 60px; display: flex; align-items: center;
+            padding: 0 40px; border-bottom: 1px solid #e5e7eb; }
+  .lp-brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 19px; }
+  .lp-mark { width: 30px; height: 30px; border-radius: 8px; background: #ffedd5; object-fit: cover; object-position: 50% 0; }
+  .lp-links { margin-left: 56px; display: flex; gap: 30px; font-size: 15px; color: #475569; }
+  .lp-signin { margin-left: auto; color: var(--brand); font-weight: 600; font-size: 15px; }
+  .lp-hero { position: absolute; left: 56px; top: 60px; width: 600px; padding-top: 42px; }
+  .lp-eyebrow { color: var(--brand); font-weight: 600; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; }
+  .lp-h1 { position: relative; width: fit-content; margin: 12px 0 14px; font-size: 54px; line-height: 1.04;
+           letter-spacing: -1.6px; font-weight: 750; height: 112px; }
+  .lp-h1 .mask { display: block; overflow: hidden; }
+  .lp-h1 .v { display: block; white-space: nowrap; }
+  .lp-h1 .v2 { position: absolute; left: 0; top: 0; }
+  .lp-lede { margin: 0; font-size: 17px; line-height: 1.5; color: #475569; width: 470px; }
+  .lp-actions { margin-top: 26px; height: 52px; display: flex; align-items: center; gap: 22px; }
+  .cta { position: relative; overflow: hidden; width: 160px; height: 44px; border-radius: 8px; background: var(--brand); color: #fff;
+         font-weight: 600; font-size: 15px; box-shadow: 0 6px 20px rgba(37, 99, 235, .3); }
+  .cta span { position: absolute; inset: 0; display: grid; place-items: center; white-space: nowrap; }
+  .ghost { color: #0f172a; font-weight: 600; font-size: 15px; }
+  .lp-chart { position: absolute; left: 720px; top: 102px; width: 500px; height: 276px; border-radius: 16px;
+              background: #f8fafc; border: 1px solid #e2e8f0; padding: 22px 24px; }
+  .lp-chart .t { font-size: 14px; font-weight: 600; color: #0f172a; }
+  .lp-code { margin-top: 12px; padding: 13px 16px; border-radius: 10px; background: #0f172a; color: #e2e8f0; font-family: var(--mono);
+             font-size: 14px; line-height: 1.6; white-space: pre; }
+  .lp-code i { font-style: normal; color: #64748b; }
+  .lp-feat { margin: 16px 0 0; padding: 0; list-style: none; font-size: 15px; line-height: 1.9; color: #334155; }
+  .lp-feat li::before { content: '✓'; margin-right: 10px; color: var(--brand); font-weight: 700; }
+  #instr { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); background: #0f172a; color: #94a3b8;
+           font-size: 13px; padding: 9px 16px; border-radius: 8px; white-space: nowrap; box-shadow: 0 4px 12px rgba(0, 0, 0, .4); }
+  #instr b { color: var(--pick); font-weight: 500; }
+
+  /* DevTools tab strip */
+  .dtbar { position: absolute; left: 0; top: 508px; right: 0; height: 32px; background: #1b1b1d;
+           border-top: 1px solid var(--sep); border-bottom: 1px solid var(--sep); display: flex; align-items: stretch;
+           padding: 0 10px; gap: 2px; font-size: 12.5px; color: var(--label2); }
+  .dtbar span { display: flex; align-items: center; padding: 0 12px; }
+  .dtbar .on { color: #fff; box-shadow: inset 0 -2px 0 var(--tint); }
+
+  /* ---- the Inspector Jake panel (iOS dark) ---- */
+  #panel { position: absolute; left: 0; top: 540px; width: 1280px; height: 540px; background: #000; overflow: hidden; }
+  .ph { position: absolute; left: 0; top: 0; right: 0; height: 52px; background: rgba(28, 28, 30, .92);
+        border-bottom: 1px solid var(--sep); display: flex; align-items: center; padding: 0 16px; }
+  .appicon { width: 30px; height: 30px; border-radius: 7px; background: var(--tint); display: grid; place-items: center; }
+  .apptitle { margin-left: 10px; font-size: 17px; font-weight: 600; }
+  #seg { position: absolute; left: 545px; top: 10px; width: 190px; height: 32px; border-radius: 9px;
+         background: rgba(118, 118, 128, .24); }
+  #segthumb { position: absolute; left: 2px; top: 2px; width: 93px; height: 28px; border-radius: 7px; background: var(--seg);
+              box-shadow: 0 3px 8px rgba(0, 0, 0, .12), 0 3px 1px rgba(0, 0, 0, .04); }
+  #seg span { position: absolute; top: 0; width: 95px; height: 32px; display: grid; place-items: center;
+              font-size: 13.5px; font-weight: 600; }
+  .phr { margin-left: auto; display: flex; align-items: center; gap: 14px; }
+  .sess { height: 26px; border-radius: 13px; padding: 0 10px; display: flex; align-items: center; gap: 6px;
+          background: rgba(48, 209, 88, .16); color: var(--green); font-size: 13.5px; font-weight: 600; }
+  .sess i { width: 7px; height: 7px; border-radius: 50%; background: var(--green); }
+  .xbtn { width: 24px; height: 24px; border-radius: 50%; background: var(--fill2); display: grid; place-items: center;
+          color: #c7c7cc; font-size: 13px; }
+
+  .side { position: absolute; left: 0; top: 52px; width: 268px; bottom: 0; padding: 16px 12px; }
+  .sidehd { display: flex; justify-content: space-between; align-items: baseline; padding: 0 10px 8px; }
+  .sidehd .k { font-size: 12.5px; color: var(--label2); letter-spacing: .02em; }
+  .sidehd .c { font-size: 15px; color: var(--tint); }
+  #list { border-radius: 12px; background: var(--elev); overflow: hidden; }
+  .row { position: relative; height: 76px; overflow: hidden; display: flex; align-items: flex-start; gap: 11px;
+         padding: 16px 12px 0; }
+  .row + .row::before { content: ''; position: absolute; left: 67px; right: 0; top: 0; height: 1px; background: var(--sep); }
+  .row.sel { background: rgba(10, 132, 255, .22); }
+  .thumb { width: 44px; height: 44px; border-radius: 8px; background: #fff; flex: none; position: relative; overflow: hidden;
+           border: 1px solid #1e293b; }
+  .thumb.btn::after { content: 'Get started'; position: absolute; left: 4px; top: 15px; width: 34px; height: 13px;
+                      border-radius: 3px; background: var(--brand); font-size: 5px; line-height: 13px; text-align: center; font-weight: 600; }
+  .thumb.h1 i { position: absolute; left: 6px; height: 6px; border-radius: 2px; background: #0f172a; }
+  .rt { flex: 1; min-width: 0; margin-top: -3px; }
+  .rt .tag { font-size: 16px; font-weight: 600; }
+  .rt .sel2 { display: flex; justify-content: space-between; gap: 6px; margin-top: 1px; font-family: var(--mono);
+              font-size: 12px; color: var(--label2); white-space: nowrap; }
+  .rt .sel2 span:first-child { overflow: hidden; text-overflow: ellipsis; }
+  .rt .note { margin-top: 2px; font-size: 12.5px; color: var(--yellow); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; height: 16px; }
+  #nocap { position: absolute; left: 12px; top: 48px; width: 244px; height: 76px; border-radius: 12px; border: 1.5px dashed #3a3a3c;
+           display: grid; place-items: center; font-size: 14px; color: var(--ph); }
+  #sendc { margin-top: 10px; height: 48px; border-radius: 12px; background: rgba(10, 132, 255, .15); color: var(--tint); display: flex;
+           align-items: center; justify-content: center; gap: 8px; font-size: 17px; font-weight: 600; }
+  #pickbtn { margin-top: 10px; height: 48px; border-radius: 12px; background: var(--tint); display: flex; align-items: center;
+             justify-content: center; gap: 8px; font-size: 17px; font-weight: 600; }
+  .hint { margin-top: 12px; padding: 0 10px; font-size: 13px; line-height: 1.45; color: var(--label2); }
+
+  .main { position: absolute; left: 268px; top: 52px; width: 1012px; bottom: 0; }
+  .view { position: absolute; inset: 0; padding: 18px 24px; }
+  .eyebrow { font-size: 12.5px; color: var(--label2); letter-spacing: .02em; }
+  .crumbrow { margin-top: 6px; height: 36px; display: flex; align-items: center; justify-content: space-between; }
+  .crumb { position: relative; font-family: var(--mono); font-size: 19px; font-weight: 700; white-space: nowrap; }
+  .crumb .s2 { position: absolute; left: 0; top: 0; }
+  .copysel { height: 32px; border-radius: 16px; padding: 0 14px; display: flex; align-items: center; gap: 7px;
+             background: rgba(10, 132, 255, .15); color: var(--tint); font-size: 15px; }
+  .wgrid { margin-top: 14px; display: flex; gap: 18px; }
+  .preview { position: relative; width: 552px; height: 372px; border-radius: 14px; background: var(--elev); padding: 8px; }
+  .canvas { position: relative; width: 100%; height: 100%; border-radius: 9px; overflow: hidden; background-color: #0a0a0c;
+            background-image: linear-gradient(rgba(255, 255, 255, .04) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(255, 255, 255, .04) 1px, transparent 1px);
+            background-size: 22px 22px; }
+  .pv { position: absolute; left: 0; top: 0; width: 100%; height: 100%; }
+  .pvbtn { position: absolute; left: 138px; top: 148px; width: 256px; height: 70px; border-radius: 13px; background: var(--brand);
+           display: grid; place-items: center; font-size: 24px; font-weight: 600; }
+  .pvh1 { position: absolute; left: 50px; top: 110px; padding: 8px 10px; background: #fff; color: #0f172a; font-size: 52px; line-height: 1.04;
+          letter-spacing: -1.5px; font-weight: 750; }
+  .dim { position: absolute; background: var(--tint); }
+  .dimlbl { position: absolute; height: 20px; padding: 0 6px; border-radius: 5px; background: var(--tint); font-family: var(--mono);
+            font-size: 12px; font-weight: 700; line-height: 20px; color: #fff; }
+  .handle { position: absolute; width: 10px; height: 10px; border-radius: 50%; background: #fff; border: 2px solid var(--tint); }
+  #wsempty { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; color: var(--ph); font-size: 16px; }
+  .rcol { width: 394px; }
+  #notes { position: relative; margin-top: 6px; height: 78px; border-radius: 12px; background: var(--elev); padding: 12px 14px;
+           font-size: 16px; line-height: 1.35; }
+  #notes .ph2 { color: var(--ph); }
+  #notesring { position: absolute; inset: -2px; border-radius: 14px; border: 2px solid var(--tint); opacity: 0; }
+  .notesfoot { margin-top: 8px; display: flex; justify-content: space-between; font-size: 12.5px; color: var(--label2); padding: 0 4px; }
+  .css { margin-top: 14px; border-radius: 12px; background: var(--elev); overflow: hidden; }
+  .segs { margin: 8px; height: 32px; border-radius: 9px; background: rgba(118, 118, 128, .24); display: flex; padding: 2px; }
+  .segs span { flex: 1; display: grid; place-items: center; font-size: 13.5px; font-weight: 600; border-radius: 7px; }
+  .segs span.on { background: var(--seg); }
+  .prow { height: 33px; display: flex; align-items: center; justify-content: space-between; padding: 0 14px;
+          border-top: 1px solid var(--sep); font-size: 14px; }
+  .prow b { font-weight: 400; font-family: var(--mono); font-size: 13px; color: var(--label2); }
+  .prow b.k { color: var(--tint); }
+  .sw { display: inline-block; width: 11px; height: 11px; border-radius: 3px; background: var(--brand); margin-right: 6px; vertical-align: -1px; }
+
+  /* chat view */
+  .chat { position: absolute; left: 50%; top: 0; bottom: 0; width: 700px; margin-left: -350px; }
+  .chd { position: absolute; left: 0; right: 0; top: 16px; text-align: center; }
+  .avatar { margin: 0 auto; width: 46px; height: 46px; border-radius: 50%; background: var(--fill); display: grid; place-items: center; }
+  .chd .nm { margin-top: 8px; font-size: 17px; font-weight: 600; }
+  .chd .sb { margin-top: 2px; font-size: 13px; color: var(--label2); }
+  #thread { position: absolute; left: 0; right: 0; top: 132px; bottom: 112px; }
+  #chatempty { position: absolute; left: 0; right: 0; top: 70px; text-align: center; font-size: 14px; color: var(--ph); line-height: 1.5; }
+  .msg { position: absolute; }
+  #you { right: 0; top: 18px; text-align: right; }
+  .thumbs { display: inline-flex; gap: 6px; }
+  .th { position: relative; width: 44px; height: 44px; border-radius: 10px; overflow: hidden; background: #fff; box-shadow: inset 0 0 0 .5px var(--sep); }
+  .th.btn::after { content: 'Get started'; position: absolute; left: 5px; top: 15px; width: 34px; height: 14px; border-radius: 3px;
+                  background: var(--brand); color: #fff; font-size: 5.5px; line-height: 14px; text-align: center; font-weight: 600; }
+  .th.h1 i { position: absolute; left: 7px; height: 6px; border-radius: 2px; background: #0f172a; }
+  .th b { position: absolute; right: 3px; top: 3px; width: 7px; height: 7px; border-radius: 50%; background: var(--yellow); box-shadow: 0 0 0 1.5px #000; }
+  .bub { margin-top: 6px; display: inline-block; max-width: 520px; padding: 9px 14px; border-radius: 19px; font-size: 16px; line-height: 1.38;
+         text-align: left; }
+  .bub.me { background: var(--tint); }
+  .bub.cl { background: var(--fill); }
+  .time { margin-top: 5px; font-size: 12px; color: var(--label3); }
+  #reply { left: 0; top: 136px; }
+  #reply .who { font-size: 12.5px; color: var(--label2); padding-left: 12px; }
+  .cfoot { position: absolute; left: 0; right: 0; bottom: 18px; }
+  .chip { display: inline-flex; height: 26px; align-items: center; padding: 0 11px; border-radius: 13px; background: rgba(10, 132, 255, .18);
+          color: #4da3ff; font-size: 13px; font-weight: 600; }
+  #composer { position: relative; margin-top: 10px; height: 46px; border-radius: 23px; border: 1px solid var(--fill2); background: #0c0c0d;
+              display: flex; align-items: center; padding: 0 52px 0 16px; font-size: 16px; }
+  #composer .ph2 { color: var(--ph); }
+  #sendbtn { position: absolute; right: 7px; top: 6px; width: 32px; height: 32px; border-radius: 50%; background: var(--fill2);
+             display: grid; place-items: center; }
+  .caret { display: inline-block; width: 2px; height: 1.15em; background: var(--tint); vertical-align: -.2em; margin-left: 1px; }
+
+  /* ---- the terminal: the Claude Code session the panel is attached to ---- */
+  #term { left: 2000px; top: 140px; width: 1060px; height: 800px; background: #0e0e10; }
+  .ttl { position: absolute; left: 0; top: 0; right: 0; height: 44px; background: #ececee; border-bottom: 1px solid #d4d4d8;
+         text-align: center; line-height: 44px; font-size: 13.5px; font-weight: 500; color: #3c3c43; }
+  .tbody { position: absolute; left: 0; top: 44px; right: 0; bottom: 0; padding: 26px 34px; font-family: var(--mono);
+           font-size: 21px; line-height: 33px; color: #e5e5ea; white-space: pre; }
+  .ln { height: 33px; }
+  .dimc { color: #7c7c84; } .tint { color: #5eb1ff; } .grn { color: #4ade80; } .yel { color: #fde68a; } .wht { color: #fff; }
+  .quote { border-left: 3px solid #3a3a3c; padding-left: 18px; margin-left: 2px; }
+  .del { background: rgba(255, 69, 58, .2); color: #ffb4ad; margin-right: 120px; }
+  .add { background: rgba(48, 209, 88, .2); color: #a7f3c0; margin-right: 120px; }
+  .prompt { position: absolute; left: 34px; right: 34px; bottom: 34px; height: 62px; border: 1.5px solid #3a3a3c; border-radius: 10px;
+            padding: 0 20px; line-height: 59px; font-family: var(--mono); font-size: 21px; color: #7c7c84; }
+  .prompt .blk { display: inline-block; width: 12px; height: 25px; background: #c7c7cc; vertical-align: -5px; }
+
+  /* ---- picker overlay (world space), the carried box, change flashes ---- */
+  #hb { position: absolute; left: 0; top: 0; border: 2px solid var(--pick); border-radius: 2px; background: rgba(34, 197, 94, .15);
+        box-shadow: 0 0 0 1px rgba(34, 197, 94, .3); opacity: 0; }
+  #hblbl { position: absolute; left: 0; top: 0; background: #0f172a; color: var(--pick); font-family: var(--mono); font-size: 12.5px;
+           padding: 4px 8px; border-radius: 4px; white-space: nowrap; box-shadow: 0 2px 8px rgba(0, 0, 0, .3); opacity: 0; }
+  .fly { position: absolute; left: 0; top: 0; border: 2px solid var(--pick); background: rgba(34, 197, 94, .2); opacity: 0;
+         box-shadow: 0 10px 40px rgba(34, 197, 94, .25); }
+  #flybub { position: absolute; left: 0; top: 0; border-radius: 19px; background: var(--tint); opacity: 0; padding: 9px 14px;
+            font-size: 16px; line-height: 1.38; white-space: nowrap; box-shadow: 0 16px 50px rgba(10, 132, 255, .45); }
+  .hmr { position: absolute; border: 2px solid var(--pick); border-radius: 4px; opacity: 0; box-shadow: 0 0 24px rgba(34, 197, 94, .5); }
+  .hmrlbl { position: absolute; background: #0f172a; color: var(--pick); font-family: var(--mono); font-size: 12.5px; padding: 4px 8px;
+            border-radius: 4px; white-space: nowrap; opacity: 0; }
+
+  /* ---- screen space: caption scrim, captions, cursor ---- */
+  #scrim { position: absolute; left: 0; top: 0; bottom: 0; width: 1180px;
+           background: linear-gradient(90deg, rgba(0, 0, 0, .97) 0, rgba(0, 0, 0, .94) 580px, rgba(0, 0, 0, .55) 790px, transparent 1060px); }
+  #caps { position: absolute; left: 112px; top: 0; width: 620px; height: 1080px; }
+  .cap { position: absolute; left: 0; top: 540px; width: 620px; transform: translateY(-50%); }
+  .num { width: 58px; height: 58px; border-radius: 50%; background: var(--tint); display: grid; place-items: center;
+         font-family: var(--display); font-size: 29px; font-weight: 700; opacity: 0; }
+  .ctitle { margin-top: 26px; font-family: var(--display); font-size: 80px; line-height: 1.02; font-weight: 700; letter-spacing: -2.2px; }
+  .csub { margin-top: 22px; font-size: 31px; line-height: 1.32; color: var(--label2); }
+  .m { display: inline-block; overflow: hidden; vertical-align: top; padding-bottom: .1em; margin-bottom: -.1em; }
+  .w { display: inline-block; transform: translateY(110%); }
+  #steps { position: absolute; left: 112px; top: 904px; display: flex; gap: 10px; opacity: 0; }
+  #steps i { position: relative; width: 46px; height: 6px; border-radius: 3px; background: #2c2c2e; overflow: hidden; }
+  #steps b { position: absolute; inset: 0; background: var(--tint); transform-origin: left; transform: scaleX(0); }
+
+  #cursor { position: absolute; left: 0; top: 0; width: 36px; height: 52px; transform-origin: 3px 3px; opacity: 0;
+            filter: drop-shadow(0 3px 6px rgba(0, 0, 0, .5)); }
+  #ripple { position: absolute; left: 0; top: 0; width: 70px; height: 70px; margin: -35px 0 0 -35px; border-radius: 50%;
+            border: 3px solid var(--pick); opacity: 0; }
+
+  /* ---- end card ---- */
+  #end { position: absolute; inset: 0; }
+  #frame { position: absolute; left: 0; top: 0; border: 3px solid var(--pick); border-radius: 4px; background: rgba(34, 197, 94, .08);
+           opacity: 0; box-shadow: 0 0 0 1px rgba(34, 197, 94, .3); }
+  #framelbl { position: absolute; background: #0f172a; color: var(--pick); font-family: var(--mono); font-size: 19px; padding: 6px 12px;
+              border-radius: 6px; white-space: nowrap; opacity: 0; }
+  #foxclip { position: absolute;
+             clip-path: polygon(-400px -700px, calc(100% + 400px) -700px, calc(100% + 400px) 0, 100% 0, 100% 100%, 0 100%, 0 0, -400px 0); }
+  #fox { position: absolute; left: 0; top: 0; }
+  #wm { position: absolute; left: 740px; top: 0; }
+  .wmt { font-family: var(--display); font-size: 108px; line-height: 1; font-weight: 800; letter-spacing: -3.4px; white-space: nowrap; }
+  .wms { margin-top: 18px; font-size: 34px; line-height: 1.3; color: var(--label2); width: 900px; }
+  .cmd { margin-top: 38px; display: inline-flex; align-items: center; gap: 14px; height: 66px; padding: 0 26px; border-radius: 16px;
+         background: #141416; border: 1px solid var(--sep); font-family: var(--mono); font-size: 25px; white-space: nowrap; }
+  .cmd .d { color: var(--ph); }
+  .plat { margin-top: 22px; font-size: 22px; color: var(--label3); }
+  .end-i { opacity: 0; }
+
+  /* ---- ?static: a fixed camera. The browser fills the left, the terminal sits beside it, captions go under the
+     terminal, and a soft spotlight dims whatever is not in play. ---- */
+  #spot { position: absolute; left: 0; top: 0; border-radius: 16px; box-shadow: 0 0 0 4000px rgba(0, 0, 0, .52); opacity: 0; }
+  .static #scrim { display: none; }
+  .static #term { left: 1307px; top: 0; width: 764px; height: 718px; }
+  .static .tbody { padding: 22px 26px; font-size: 18.5px; line-height: 28px; }
+  .static .ln { height: 28px; }
+  .static .del, .static .add { margin-right: 0; }
+  .static .prompt { left: 26px; right: 26px; bottom: 24px; height: 54px; line-height: 51px; font-size: 18.5px; }
+  .static .prompt .blk { height: 22px; }
+  /* the captions sit on a light card that matches the windows' light chrome */
+  #capcard { display: none; }
+  .static #capcard { display: block; position: absolute; left: 1204px; top: 724px; width: 688px; height: 302px; border-radius: 14px;
+                     background: #f6f6f7; box-shadow: 0 0 0 1px rgba(255, 255, 255, .3), 0 40px 120px rgba(0, 0, 0, .7), 0 12px 40px rgba(0, 0, 0, .5); }
+  .static #caps { left: 1244px; top: 724px; width: 608px; height: 270px; }
+  .static .cap { top: 50%; width: 608px; }
+  .static .ctitle { color: #1d1d1f; }
+  .static .csub { color: #6e6e73; }
+  .static #steps i { background: #d1d1d6; }
+  .static .num { width: 44px; height: 44px; font-size: 22px; }
+  .static .ctitle { margin-top: 16px; font-size: 48px; letter-spacing: -1.3px; }
+  .static .csub { margin-top: 12px; font-size: 25px; }
+  .static #steps { left: 1244px; top: 990px; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="bg"></div>
+  <div id="glow"></div>
+
+  <div id="world">
+    <!-- browser window with the demo page and DevTools docked below -->
+    <div id="browser" class="win">
+      <div class="tabbar">
+        <i class="tl r"></i><i class="tl y"></i><i class="tl g"></i>
+        <div class="tab"><img class="fav" src="assets/logo.svg" alt=""><span>Inspector Jake · Point and click</span><em>✕</em></div>
+      </div>
+      <div class="toolbar">
+        <span>‹</span><span>›</span><span style="font-size:17px">↻</span>
+        <div class="omni"><i>ⓘ</i>localhost:5173</div>
+        <div class="extbtn"><svg width="13" height="13" viewBox="0 0 16 16"><circle cx="6.5" cy="6.5" r="4.3" fill="none" stroke="#fff" stroke-width="2"/><path d="M10 10l4 4" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg></div>
+      </div>
+
+      <div id="vp">
+        <div class="lp-nav" id="lpnav">
+          <div class="lp-brand"><img class="lp-mark" src="assets/logo.svg" alt="">Inspector Jake</div>
+          <div class="lp-links"><span style="color:#0f172a;font-weight:600">Features</span><span>How it works</span><span>Docs</span><span>Changelog</span></div>
+          <div class="lp-signin">GitHub →</div>
+        </div>
+        <div class="lp-hero">
+          <div class="lp-eyebrow">Open source</div>
+          <div class="lp-h1" id="h1">
+            <div class="mask"><span class="v v1" id="h1a">Stop describing<br>your UI.</span></div>
+            <div class="mask v2"><span class="v" id="h1b">Just point<br>at it.</span></div>
+          </div>
+          <p class="lp-lede">Pick any element on the page, leave a note, and your coding agent makes the change.</p>
+          <div class="lp-actions"><div class="cta" id="cta"><span id="ctaA">Get started</span><span id="ctaB">Add to Chrome</span></div><div class="ghost">Read the docs →</div></div>
+        </div>
+        <div class="lp-chart">
+          <div class="t">Install in Claude Code</div>
+          <div class="lp-code"><i>$</i> claude mcp add inspector-jake \
+    -- npx -y inspector-jake-mcp</div>
+          <ul class="lp-feat"><li>Pick elements and regions</li><li>Notes go to your agent</li><li>Chat with Claude from DevTools</li></ul>
+        </div>
+        <div id="instr"><b>Click</b> to select · <b>Drag</b> to screenshot · <b>Scroll</b> ↑ parent ↓ child · <b>Esc</b> to cancel</div>
+      </div>
+
+      <div class="dtbar"><span>Elements</span><span>Console</span><span>Sources</span><span>Network</span><span>Performance</span><span class="on">Jake</span></div>
+
+      <div id="panel">
+        <div class="ph">
+          <div class="appicon"><svg width="17" height="17" viewBox="0 0 16 16"><circle cx="6.5" cy="6.5" r="4.3" fill="none" stroke="#fff" stroke-width="1.9"/><path d="M10 10l4 4" stroke="#fff" stroke-width="2.1" stroke-linecap="round"/></svg></div>
+          <div class="apptitle">Inspector Jake</div>
+          <div id="seg"><div id="segthumb"></div><span style="left:0">Inspect</span><span style="left:95px">Chat</span></div>
+          <div class="phr">
+            <div class="sess"><i></i>jake</div><div class="xbtn">✕</div>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0a84ff" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M7 9l3 3-3 3M12 15h5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0a84ff" stroke-width="1.8"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v2.6M12 18.6v2.6M2.8 12h2.6M18.6 12h2.6M5.5 5.5l1.8 1.8M16.7 16.7l1.8 1.8M5.5 18.5l1.8-1.8M16.7 7.3l1.8-1.8" stroke-linecap="round"/></svg>
+          </div>
+        </div>
+
+        <div class="side">
+          <div class="sidehd"><span class="k" id="capcount">CAPTURES · 0</span><span class="c">Clear</span></div>
+          <div id="list">
+            <div class="row" id="row1"><div class="thumb btn" id="th1"></div>
+              <div class="rt"><div class="tag">&lt;button&gt;</div><div class="sel2"><span>button.cta-primary</span><span>160×44</span></div><div class="note" id="n1"></div></div></div>
+            <div class="row" id="row2"><div class="thumb h1" id="th2"><i style="top:13px;width:30px"></i><i style="top:23px;width:24px"></i></div>
+              <div class="rt"><div class="tag">&lt;h1&gt;</div><div class="sel2"><span>h1.headline</span><span>312×112</span></div><div class="note" id="n2"></div></div></div>
+          </div>
+          <div id="nocap">No captures yet</div>
+          <div id="pickbtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"><path d="M5 3l14 8-6 1.5L10 19z"/></svg>Pick Element</div>
+          <div id="sendc"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4z"/><path d="M22 2 11 13"/></svg>Send to Claude</div>
+          <div class="hint">Send to Claude opens Chat and sends your captures with their notes.</div>
+        </div>
+
+        <div class="main">
+          <div class="view" id="vInspect">
+            <div class="eyebrow">WORKSPACE</div>
+            <div class="crumbrow">
+              <div class="crumb" id="crumb"><span class="s1">body &gt; main &gt; section.hero &gt; button.cta-primary</span><span class="s2">body &gt; main &gt; section.hero &gt; h1.headline</span></div>
+              <div class="copysel">⧉ Copy Selector</div>
+            </div>
+            <div class="wgrid">
+              <div class="preview"><div class="canvas" id="canvas">
+                <div class="pv" id="pvBtn">
+                  <div class="pvbtn">Get started</div>
+                  <div class="dim" id="dimH" style="left:138px;top:120px;width:256px;height:1.5px"></div>
+                  <div class="dimlbl" style="left:241px;top:109px">160px</div>
+                  <div class="dim" id="dimV" style="left:110px;top:148px;width:1.5px;height:70px"></div>
+                  <div class="dimlbl" style="left:90px;top:173px">44px</div>
+                  <i class="handle" style="left:133px;top:143px"></i><i class="handle" style="left:389px;top:143px"></i>
+                  <i class="handle" style="left:133px;top:213px"></i><i class="handle" style="left:389px;top:213px"></i>
+                </div>
+                <div class="pv" id="pvH1"><div class="pvh1">Stop describing<br>your UI.</div></div>
+                <div id="wsempty">Pick an element to start</div>
+              </div></div>
+              <div class="rcol">
+                <div class="eyebrow">JAKE'S NOTES</div>
+                <div id="notes"><span id="notestxt"></span><div id="notesring"></div></div>
+                <div class="notesfoot"><span>Sent to Claude with this capture.</span><span id="ncount">0/500</span></div>
+                <div class="css">
+                  <div class="segs"><span class="on">CSS</span><span>Accessibility</span></div>
+                  <div class="prow">background<b><i class="sw"></i>#2563eb</b></div>
+                  <div class="prow">border-radius<b>0.5rem</b></div>
+                  <div class="prow">display<b class="k">grid</b></div>
+                  <div class="prow">font-weight<b>600</b></div>
+                  <div class="prow">height<b>44px</b></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="view" id="vChat">
+            <div class="chat">
+              <div class="chd">
+                <div class="avatar"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M7 9l3 3-3 3M12 15h5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+                <div class="nm">lumen-web</div>
+                <div class="sb">Claude Code session · replies to jake-panel</div>
+              </div>
+              <div id="thread">
+                <div id="chatempty">Messages go to the Claude Code session<br>this panel is attached to.</div>
+                <div class="msg" id="you"><div class="thumbs" id="youatt"><span class="th btn"><b></b></span><span class="th h1"><i style="top:14px;width:30px"></i><i style="top:24px;width:22px"></i><b></b></span></div><br><div class="bub me" id="youbub">Make the changes in my notes.</div><div class="time" id="youtime">12:04 PM</div></div>
+                <div class="msg" id="reply"><div class="who">lumen-web</div><div class="bub cl" id="replybub">Done. The button is orange, 52px tall and says “Add to Chrome”, and the headline says “Just point at it.”</div></div>
+              </div>
+              <div class="cfoot">
+                <div class="chip" id="chip">Includes 2 captures (2 with notes)</div>
+                <div id="composer"><span id="comptxt"></span><div id="sendbtn"><svg width="16" height="16" viewBox="0 0 16 16"><path d="M8 13V3M3.5 7.5L8 3l4.5 4.5" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- the Claude Code session -->
+    <div id="term" class="win">
+      <i class="tl r"></i><i class="tl y"></i><i class="tl g"></i>
+      <div class="ttl">~/lumen — claude</div>
+      <div class="tbody" id="tbody"></div>
+      <div class="prompt">&gt; <span class="blk" id="blk"></span></div>
+    </div>
+
+    <div id="hb"></div>
+    <div id="hblbl"></div>
+    <div class="fly" id="fly1"></div>
+    <div class="fly" id="fly2"></div>
+    <div id="flybub">Make the changes in my notes.</div>
+    <div class="hmr" id="hmr1"></div><div class="hmrlbl" id="hmr1l">h1.headline “Just point at it.”</div>
+    <div class="hmr" id="hmr2"></div><div class="hmrlbl" id="hmr2l">button.cta-primary 200×52 “Add to Chrome”</div>
+  </div>
+
+  <div id="scrim"></div>
+  <div id="spot"></div>
+  <div id="capcard"></div>
+  <div id="caps"></div>
+  <div id="steps"><i><b></b></i><i><b></b></i><i><b></b></i><i><b></b></i></div>
+
+  <div id="end">
+    <div id="foxclip"><img id="fox" src="assets/logo.svg" alt=""></div>
+    <div id="frame"></div>
+    <div id="framelbl">img.jake 360×360</div>
+    <div id="wm">
+      <div class="wmt end-i">Inspector Jake</div>
+      <div class="wms end-i">Direct your agent to make updates with point and click.</div>
+      <div class="cmd end-i"><span class="d">$</span>claude mcp add inspector-jake -- npx -y inspector-jake-mcp</div>
+      <div class="plat end-i">Chrome extension + MCP server · macOS · Linux · Windows</div>
+    </div>
+  </div>
+
+  <svg id="cursor" viewBox="0 0 24 34"><path d="M2.2 1.8v25.4l6.1-5.9 4.4 9.6 4.1-1.8-4.3-9.4h8.6z" fill="#fff" stroke="#000" stroke-width="1.5" stroke-linejoin="round"/></svg>
+  <div id="ripple"></div>
+</div>
+
+<script src="vendor/gsap.min.js"></script>
+<script src="vendor/CustomEase.min.js"></script>
+<script src="js/motionblur.js"></script>
+<script>
+(async () => {
+  gsap.registerPlugin(CustomEase);
+  const $ = (s) => document.querySelector(s);
+  const STATIC = new URLSearchParams(location.search).has('static');   // the fixed-camera version
+  document.body.classList.toggle('static', STATIC);
+  const DURATION = 25.1;
+  const FPS = 30;
+  const F = 1 / FPS;                       // one frame, for 2-4 frame staggers
+
+  // ---- seeded randomness (typing rhythm only) ----
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+
+  // ---- five named eases ----
+  CustomEase.create('enter', 'M0,0 C0.05,0.7 0.1,1 1,1');       // decelerate
+  CustomEase.create('exit', 'M0,0 C0.3,0 0.8,0.15 1,1');        // accelerate
+  CustomEase.create('move', 'M0,0 C0.62,0 0.14,1 1,1');         // in-out, for the camera and travel
+  CustomEase.create('whip', 'M0,0 C0.7,0 0.25,1 1,1');          // harder in-out, for whip pans
+  // a real damped spring, zeta 0.65 (about 7% overshoot), settled at 1
+  const ZETA = 0.65, OMEGA = 8.2, WD = OMEGA * Math.sqrt(1 - ZETA * ZETA);
+  gsap.registerEase('spring', (p) => p >= 1 ? 1 :
+    1 - Math.exp(-ZETA * OMEGA * p) * (Math.cos(WD * p) + (ZETA * OMEGA / WD) * Math.sin(WD * p)));
+
+  // ---- build the generated bits of the DOM ----
+
+  const CAPS = [
+    { n: 1, color: '#16a34a', title: 'Point at it.', sub: ['Hover anything on the page,', 'then click to capture it.'] },
+    { n: 2, color: '#ea580c', title: 'Leave a note.', sub: ['Say what should change.', 'Capture as many as you like.'] },
+    { n: 3, color: '#9333ea', title: 'Send it to Claude.', sub: ['One click opens Chat and sends', 'every capture with its note.'] },
+    { n: 4, color: '#e11d48', title: 'Claude makes the change.', sub: ['Then it replies', 'right in the panel.'] },
+  ];
+  const mask = (txt) => `<span class="m"><span class="w">${txt}</span></span>`;
+  $('#caps').innerHTML = CAPS.map((c) => `<div class="cap" id="cap${c.n}"><div class="num" style="background:${c.color}">${c.n}</div>` +
+    `<div class="ctitle">${c.title.split(' ').map(mask).join(' ')}</div>` +
+    `<div class="csub">${c.sub.map(mask).join('<br>')}</div></div>`).join('');
+  document.querySelectorAll('#steps b').forEach((b, i) => { b.style.background = CAPS[i].color; });
+
+  // the terminal transcript; each entry is one line (html)
+  const L = (cls, html) => ({ cls, html });
+  const TERM = [
+    L('quote', '<span class="tint">jake-panel</span><span class="dimc">  Inspector Jake · Chrome DevTools</span>'),
+    L('quote', '<span class="wht">Make the changes in my notes.</span>'),
+    L('quote', '<span class="dimc">Page </span>Inspector Jake — localhost:5173'),
+    L('quote', '<span class="dimc">[1]</span> <span class="grn">button.cta-primary</span>  <span class="yel">“Orange, bigger, say ‘Add to Chrome’”</span>'),
+    L('quote', '<span class="dimc">[2]</span> <span class="grn">h1.headline</span>         <span class="yel">“Say: Just point at it.”</span>'),
+    L('', ' '),
+    L('tool', '<span class="bul">⏺</span> <span class="wht">Update</span>(src/components/Hero.vue)'),
+    L('', '<span class="dimc">  ⎿  Updated with 3 additions and 3 removals</span>'),
+    L('del', '<span class="dimc">   12 </span>-    &lt;h1 class="headline"&gt;Stop describing your UI.&lt;/h1&gt;'),
+    L('add', '<span class="dimc">   12 </span>+    &lt;h1 class="headline"&gt;Just point at it.&lt;/h1&gt;'),
+    L('del', '<span class="dimc">   18 </span>-    &lt;a class="cta-primary"&gt;Get started&lt;/a&gt;'),
+    L('add', '<span class="dimc">   18 </span>+    &lt;a class="cta-primary"&gt;Add to Chrome&lt;/a&gt;'),
+    L('del', '<span class="dimc">   31 </span>-    background: #2563eb; height: 44px;'),
+    L('add', '<span class="dimc">   31 </span>+    background: #f97316; height: 52px;'),
+    L('', ' '),
+    L('tool', '<span class="bul">⏺</span> <span class="wht">SendMessage</span>(jake-panel)'),
+    L('', '<span class="dimc">  ⎿  Sent: “Done. The button is orange and says…”</span>'),
+  ];
+  // the static version shows the terminal the whole time, so it opens on the session's earlier exchange
+  const INTRO = STATIC ? '<div class="dimc">&gt; connect to inspector jake</div>' +
+    '<div><span class="grn">⏺</span> Connected as “jake”. Open DevTools → Jake to start.</div><div> </div>' : '';
+  $('#tbody').innerHTML = INTRO + TERM.map((l, i) => `<div class="ln ${l.cls}" id="tl${i}">${l.html}</div>`).join('');
+
+  await document.fonts.ready;
+  await Promise.all([...document.images].map((img) => img.complete || new Promise((r) => { img.onload = img.onerror = r; })));
+
+  // ---- measure world rects (the world is at identity now) ----
+  const W0 = $('#world').getBoundingClientRect();
+  const rect = (el) => { const r = (typeof el === 'string' ? $(el) : el).getBoundingClientRect();
+    return { x: r.left - W0.left, y: r.top - W0.top, w: r.width, h: r.height }; };
+  const R = {
+    nav: rect('#lpnav'), h1: rect('#h1'), cta: rect('#cta'), vp: rect('#vp'),
+    th1: rect('#th1'), th2: rect('#th2'), notes: rect('#notes'), seg: rect('#seg'),
+    sendc: rect('#sendc'), composer: rect('#composer'),
+    you: rect('#youbub'), reply: rect('#replybub'), thread: rect('#thread'),
+    msg0: rect('#tl0'), term: rect('#term'), tline: (i) => rect(`#tl${i}`), browser: rect('#browser'),
+    side: rect('.side'), main: rect('.main'), chat: rect('.chat'), panel: rect('#panel'), rcol: rect('.rcol'),
+  };
+  R.h1b = rect('#h1b');
+  const rowH = rect('#row1').h;
+  const pick2 = rect('#pickbtn');                 // Pick Element with both rows in
+  const pick1 = { ...pick2, y: pick2.y - rowH };  // with only the first
+  const nocap = rect('#nocap');
+  // the grown button: 184 x 48, still centred on the actions row
+  const ctaBig = { x: R.cta.x, y: R.cta.y - 4, w: 200, h: 52 };
+  const pad = (r, p) => ({ x: r.x - p, y: r.y - p, w: r.w + 2 * p, h: r.h + 2 * p });
+
+  // ---- state the timeline tweens; apply() turns it into pixels ----
+  const cam = { x: 0, y: 0, lz: 0, ax: 1290, ay: 540, dim: 0, blur: 0 };
+  const cur = { x: 0, y: 0, press: 0, a: 0 };
+  const hb = { x: 0, y: 0, w: 10, h: 10, a: 0, fill: 0.15, lbl: 0, la: 0 };
+  const dims = (r) => `${Math.round(r.w)}×${Math.round(r.h)}`;
+  const LABELS = [`nav.main-navigation ${dims(R.nav)}`, `h1.headline ${dims(R.h1)}`, `button.cta-primary ${dims(R.cta)}`, ''];
+  $('#row2 .sel2 span:last-child').textContent = dims(R.h1);
+  const st = { caps: 0, ws: 0, notesFocus: 0, blk: 1 };
+  const spot = { x: 0, y: 0, w: 10, h: 10, a: 0 };
+
+  const tl = gsap.timeline({ paused: true, defaults: { ease: 'enter' } });
+  const _fromTo = tl.fromTo.bind(tl);
+  tl.fromTo = (t, from, to, at) => _fromTo(t, from, { immediateRender: false, ...to }, at);
+  const lz = Math.log;
+  const shot = (x, y, z, at, dur, ease = 'move') => STATIC || tl.to(cam, { x, y, lz: lz(z), duration: dur, ease }, at);
+  const moveCur = (r, at, dur, ox = 0.5, oy = 0.55) =>
+    tl.to(cur, { x: r.x + r.w * ox, y: r.y + r.h * oy, duration: dur, ease: 'move' }, at);
+  const click = (at) => {
+    tl.to(cur, { press: 1, duration: 0.07, ease: 'exit' }, at)
+      .to(cur, { press: 0, duration: 0.16, ease: 'enter' }, at + 0.07);
+  };
+  const hbTo = (r, at, dur = 0.42) => tl.to(hb, { x: r.x, y: r.y, w: r.w, h: r.h, duration: dur, ease: 'spring' }, at);
+  const ripple = (at) => tl.fromTo('#ripple', { scale: 0.3, opacity: 0.95 }, { scale: 1.5, opacity: 0, duration: 0.45, ease: 'enter' }, at);
+
+  // initial state
+  Object.assign(cam, { x: R.cta.x + 150, y: R.vp.y + 190, lz: lz(1.72) });
+  const SZ = 0.9, SX = 28, SY = 54;                // the fixed camera: world (0, 0) at screen (28, 54), scale 0.9
+  if (STATIC) Object.assign(cam, { x: 0, y: 0, lz: lz(SZ), ax: SX, ay: SY });
+  Object.assign(cur, { x: R.nav.x + 500, y: R.nav.y + 34, a: 1 });
+  Object.assign(hb, { ...pad(R.nav, 0), a: 1, lbl: 0, la: 1 });
+  gsap.set('#row1, #row2', { height: 0 });
+  gsap.set('#pvBtn, #pvH1, .crumb span, #notes, .notesfoot, .css, .copysel', { opacity: 0 });
+  gsap.set('#vChat', { opacity: 0, x: 80 });
+  gsap.set('#you, #reply, #youatt .th', { opacity: 0 });
+  gsap.set('#h1b', { yPercent: 105 });
+  gsap.set('#ctaB', { yPercent: 100, opacity: 0 });
+  gsap.set('.ln', { opacity: 0, x: -14 });
+  gsap.set('#chip', { opacity: 0.0 });
+  gsap.set('#fox', { y: 520 });                 // below the frame (clipped) until Jake rises
+
+  // ================= Beat 1: point (0 - 4.3) =================
+  const capIn = (n, at) => {
+    tl.fromTo(`#cap${n} .num`, { scale: 0.4, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.5, ease: 'spring' }, at);
+    tl.to(`#cap${n} .ctitle .w`, { y: 0, duration: 0.55, stagger: 3 * F }, at + 0.06);
+    tl.to(`#cap${n} .csub .w`, { y: 0, duration: 0.55, stagger: 3 * F }, at + 0.22);
+    tl.to(`#steps i:nth-child(${n}) b`, { scaleX: 1, duration: 0.5, ease: 'move' }, at + 0.1);
+  };
+  const capOut = (n, at) => {
+    tl.to(`#cap${n} .ctitle .w, #cap${n} .csub .w`, { yPercent: -110, duration: 0.24, ease: 'exit', stagger: F }, at);
+    tl.to(`#cap${n} .num`, { scale: 0.6, opacity: 0, duration: 0.22, ease: 'exit' }, at + 0.04);
+  };
+  gsap.set('#steps', { opacity: 1 });
+  gsap.set('#cap1 .num', { opacity: 1 });
+  gsap.set('#cap1 .w', { y: 0 });
+  gsap.set('#steps i:nth-child(1) b', { scaleX: 1 });
+  if (!STATIC) tl.to(cam, { x: '+=26', duration: 2.4, ease: 'none' }, 0);        // a slow drift while we point (ends before the next move)
+  moveCur(R.h1, 0.45, 0.6, 0.62, 0.42);
+  hbTo(R.h1, 0.62); tl.set(hb, { lbl: 1 }, 0.66);
+  moveCur(R.cta, 1.3, 0.62, 0.55, 0.55);
+  hbTo(R.cta, 1.48); tl.set(hb, { lbl: 2 }, 1.52);
+  click(2.08); ripple(2.12);
+  tl.to(hb, { fill: 0.5, duration: 0.07, ease: 'exit' }, 2.12).to(hb, { fill: 0.15, duration: 0.3 }, 2.19);
+  // the box lifts off as the capture and flies into the sidebar; the camera follows it down
+  tl.set('#fly1', { opacity: 1, left: R.cta.x, top: R.cta.y, width: R.cta.w, height: R.cta.h, borderRadius: 2 }, 2.42);
+  tl.to(hb, { a: 0, la: 0, duration: 0.15, ease: 'exit' }, 2.42);
+  tl.to('#instr', { opacity: 0, y: 10, duration: 0.25, ease: 'exit' }, 2.35);
+  const lift = pad(R.cta, 7);                      // a short lift before it flies, so the carry reads
+  tl.to('#fly1', { left: lift.x, top: lift.y, width: lift.w, height: lift.h, duration: 0.14 }, 2.42);
+  tl.to('#fly1', { left: R.th1.x, top: R.th1.y, width: R.th1.w, height: R.th1.h, borderRadius: 8, duration: 0.74, ease: 'move' }, 2.56);
+  shot(416, 805, 1.25, 2.52, 0.9);
+  tl.to(cur, { x: R.th1.x + 150, y: R.th1.y + 120, duration: 0.9, ease: 'move' }, 2.45);
+  tl.to('#nocap', { opacity: 0, duration: 0.2, ease: 'exit' }, 2.95);
+  tl.to('#row1', { height: rowH, duration: 0.45, ease: 'spring' }, 3.02);
+  tl.to('#fly1', { opacity: 0, duration: 0.25 }, 3.26);
+  tl.set(st, { caps: 1 }, 3.1);
+  tl.set('#row1', { attr: { class: 'row sel' } }, 3.1);
+  // workspace fills in
+  tl.to('#wsempty', { opacity: 0, duration: 0.2, ease: 'exit' }, 3.1);
+  tl.to('.crumb .s1, .copysel', { opacity: 1, duration: 0.35 }, 3.2);
+  tl.fromTo('#pvBtn', { opacity: 0, scale: 0.9 }, { opacity: 1, scale: 1, duration: 0.5, ease: 'spring' }, 3.25);
+  tl.fromTo('#dimH', { scaleX: 0 }, { scaleX: 1, duration: 0.45 }, 3.45);
+  tl.fromTo('#dimV', { scaleY: 0 }, { scaleY: 1, duration: 0.45 }, 3.52);
+  tl.to('#notes, .notesfoot', { opacity: 1, duration: 0.35, stagger: 2 * F }, 3.35);
+  tl.fromTo('.css', { opacity: 0, y: 12 }, { opacity: 1, y: 0, duration: 0.45 }, 3.45);
+
+  // ================= Beat 2: note (4.3 - 10.05) =================
+  capOut(1, 4.3); capIn(2, 4.66);
+  shot(R.notes.x + R.notes.w * 0.5 - 40, R.notes.y + 40, 2.05, 4.35, 0.7);
+  moveCur(R.notes, 4.55, 0.42, 0.78, 0.6);
+  click(5.0);
+  tl.set(st, { notesFocus: 1 }, 5.05);
+  tl.to('#notesring', { opacity: 1, duration: 0.15 }, 5.04);
+  // typing 5.15-6.75 happens in apply()
+  tl.to('#notesring', { opacity: 0, duration: 0.2 }, 6.95);
+  tl.set(st, { notesFocus: 0 }, 6.95);
+  // pull back to the page plus the sidebar; capture the headline too
+  shot(R.side.x + 470, R.vp.y + 400, 1.1, 6.9, 0.75);
+  moveCur(pick1, 7.05, 0.45, 0.5, 0.5);
+  click(7.5);
+  tl.fromTo('#instr', { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.3 }, 7.58);
+  moveCur(R.h1, 7.62, 0.45, 0.55, 0.45);
+  tl.set(hb, { ...R.h1, lbl: 1 }, 7.78);
+  tl.to(hb, { a: 1, la: 1, duration: 0.15 }, 7.8);
+  click(8.12); ripple(8.16);
+  tl.to(hb, { fill: 0.5, duration: 0.07, ease: 'exit' }, 8.16).to(hb, { fill: 0.15, duration: 0.3 }, 8.23);
+  tl.set('#fly2', { opacity: 1, left: R.h1.x, top: R.h1.y, width: R.h1.w, height: R.h1.h, borderRadius: 2 }, 8.3);
+  tl.to(hb, { a: 0, la: 0, duration: 0.15, ease: 'exit' }, 8.3);
+  tl.to('#instr', { opacity: 0, y: 10, duration: 0.25, ease: 'exit' }, 8.32);
+  tl.to('#fly2', { left: R.th2.x, top: R.th2.y, width: R.th2.w, height: R.th2.h, borderRadius: 8, duration: 0.62, ease: 'move' }, 8.34);
+  // then into Jake's Notes, where the second note is typed
+  shot(R.notes.x + R.notes.w * 0.5 - 40, R.notes.y + 40, 2.05, 8.8, 0.6);
+  moveCur(R.notes, 8.75, 0.55, 0.78, 0.6);
+  click(9.32);
+  tl.set(st, { notesFocus: 1 }, 9.36);
+  tl.to('#notesring', { opacity: 1, duration: 0.15 }, 9.35);
+  tl.to('#notesring', { opacity: 0, duration: 0.2 }, 10.1);
+  tl.set(st, { notesFocus: 0 }, 10.1);
+  tl.to('#row2', { height: rowH, duration: 0.45, ease: 'spring' }, 8.7);
+  tl.set('#row1', { attr: { class: 'row' } }, 8.8);
+  tl.set('#row2', { attr: { class: 'row sel' } }, 8.8);
+  tl.set(st, { caps: 2, ws: 1 }, 8.8);
+  tl.to('#fly2', { opacity: 0, duration: 0.25 }, 8.92);
+  tl.to('.crumb .s1', { opacity: 0, duration: 0.15 }, 8.8);
+  tl.to('.crumb .s2', { opacity: 1, duration: 0.25 }, 8.85);
+  tl.to('#pvBtn', { opacity: 0, duration: 0.15 }, 8.8);
+  tl.fromTo('#pvH1', { opacity: 0, scale: 0.94 }, { opacity: 1, scale: 1, duration: 0.45, ease: 'spring' }, 8.85);
+
+  // ================= Beat 3: send (10.05 - 13.4) =================
+  // One click on Send to Claude: the panel switches to Chat by itself and sends every capture with its note
+  capOut(2, 10.0); capIn(3, 10.36);
+  shot(280, R.sendc.y - 60, 1.75, 10.1, 0.65);
+  moveCur(R.sendc, 10.2, 0.6, 0.5, 0.55);
+  click(10.95);
+  tl.to('#sendc', { scale: 0.96, duration: 0.07, ease: 'exit' }, 10.95).to('#sendc', { scale: 1, duration: 0.25 }, 11.02);
+  tl.to('#segthumb', { x: 93, duration: 0.42, ease: 'spring' }, 11.08);
+  tl.to('#vInspect', { opacity: 0, x: -80, duration: 0.22, ease: 'exit' }, 11.08);
+  tl.to('#vChat', { opacity: 1, x: 0, duration: 0.5 }, 11.24);
+  tl.to('#chip', { opacity: 1, duration: 0.3 }, 11.4);
+  shot(R.chat.x + R.chat.w * 0.5, R.composer.y - 160, 1.55, 11.15, 0.7);
+  if (!STATIC) tl.to(cur, { a: 0, duration: 0.2, ease: 'exit' }, 11.15);   // the camera leaves the sidebar; so does the cursor
+  tl.to('#chatempty', { opacity: 0, duration: 0.2, ease: 'exit' }, 11.55);
+  tl.fromTo('#you', { opacity: 0, y: 46, scale: 0.94 }, { opacity: 1, y: 0, scale: 1, duration: 0.5, ease: 'spring', transformOrigin: '100% 100%' }, 11.6);
+  tl.fromTo('#youatt .th', { opacity: 0, scale: 0.6 }, { opacity: 1, scale: 1, duration: 0.4, ease: 'spring', stagger: 3 * F }, 11.72);
+  // the message leaves for the terminal: a copy flies out and the camera whips after it
+  const bubR = { x: R.you.x, y: R.you.y, w: R.you.w, h: R.you.h };
+  tl.set('#flybub', { left: bubR.x, top: bubR.y, opacity: 0 }, 13.05);
+  tl.to('#flybub', { opacity: 1, duration: 0.06 }, 13.08);
+  tl.to('#flybub', { left: R.msg0.x - 10, top: R.msg0.y + 30, duration: 0.55, ease: 'whip' }, 13.1);
+  tl.to(cur, { a: 0, duration: 0.2, ease: 'exit' }, 13.05);
+  const termX = R.term.x + 430, termY = R.term.y + 330;
+  shot(termX, termY, 1.24, 13.08, 0.52, 'whip');
+
+  // ================= Beat 4: Claude makes the change (13.4 - 18.75) =================
+  capOut(3, 13.3); capIn(4, 13.66);
+  tl.to('#flybub', { opacity: 0, scale: 0.85, duration: 0.2, ease: 'exit' }, 13.62);
+  const lineAt = [13.66, 13.74, 13.82, 13.9, 13.98, 14.0, 14.3, 14.62, 14.72, 14.8, 14.88, 14.96, 15.04, 15.12, 15.2, 15.3, 15.6];
+  TERM.forEach((_, i) => tl.to(`#tl${i}`, { opacity: 1, x: 0, duration: 0.3 }, lineAt[i]));
+  if (!STATIC) tl.to(cam, { y: termY + 70, duration: 2.4, ease: 'none' }, 13.6);
+  // whip back to the page: the edits land (Vite hot reload)
+  shot(R.cta.x + 150, R.vp.y + 190, 1.72, 16.12, 0.52, 'whip');
+  tl.set(st, { blk: 0 }, 16.1);
+  tl.to('#h1a', { yPercent: -105, duration: 0.22, ease: 'exit' }, 16.7);
+  tl.to('#h1b', { yPercent: 0, duration: 0.45 }, 16.94);
+  const h1New = { x: R.h1b.x, y: R.h1.y, w: R.h1b.w, h: R.h1.h };
+  tl.set('#hmr1', { ...css(pad(h1New, 6)) }, 0);
+  tl.set('#hmr1l', { left: h1New.x - 6, top: h1New.y - 36 }, 0);
+  tl.fromTo('#hmr1, #hmr1l', { opacity: 0 }, { opacity: 1, duration: 0.2 }, 17.2);
+  tl.to('#cta', { width: ctaBig.w, height: ctaBig.h, fontSize: 17, duration: 0.55, ease: 'spring' }, 17.02);
+  tl.to('#cta', { backgroundColor: '#f97316', boxShadow: '0 8px 24px rgba(249, 115, 22, .4)', duration: 0.4, ease: 'move' }, 17.02);
+  tl.to('#ctaA', { yPercent: -100, opacity: 0, duration: 0.2, ease: 'exit' }, 17.02);
+  tl.to('#ctaB', { yPercent: 0, opacity: 1, duration: 0.35 }, 17.14);
+  tl.set('#hmr2', { ...css(pad(ctaBig, 6)) }, 0);
+  tl.set('#hmr2l', { left: ctaBig.x - 6, top: ctaBig.y + ctaBig.h + 12 }, 0);
+  tl.fromTo('#hmr2, #hmr2l', { opacity: 0 }, { opacity: 1, duration: 0.2 }, 17.08);
+  tl.to('#hmr1, #hmr1l, #hmr2, #hmr2l', { opacity: 0, duration: 0.4, ease: 'exit' }, 17.85);
+  // and the reply arrives in the panel
+  shot(R.chat.x + R.chat.w * 0.5, R.reply.y + 10, 1.6, 17.55, 0.6);
+  tl.fromTo('#reply', { opacity: 0, y: 30, scale: 0.95 }, { opacity: 1, y: 0, scale: 1, duration: 0.5, ease: 'spring', transformOrigin: '0% 100%' }, 17.86);
+
+  // ================= Beat 5: end card (19.35 - 25.1) =================
+  capOut(4, 19.35);
+  tl.to('#steps', { opacity: 0, duration: 0.3, ease: 'exit' }, 19.35);
+  tl.to('#capcard', { opacity: 0, y: 12, duration: 0.4, ease: 'exit' }, 19.45);
+  tl.to('#scrim', { opacity: 0, duration: 0.5, ease: 'exit' }, 19.40);
+  const wide = { x: R.browser.x + R.browser.w / 2, y: R.browser.y + R.browser.h / 2, z: 0.84 };
+  if (!STATIC) tl.to(cam, { ax: 960, duration: 0.65, ease: 'move' }, 19.38);
+  shot(wide.x, wide.y, wide.z, 19.38, 0.65);
+  const hbWide = pad(R.browser, 8);
+  tl.set(hb, { ...hbWide, lbl: 3, fill: 0.06 }, 19.90);
+  tl.to(hb, { a: 1, duration: 0.18 }, 19.92);
+  // the selection box leaves the world and becomes the frame around Jake
+  const toScreen = STATIC ? (r) => ({ x: SX + r.x * SZ, y: SY + r.y * SZ, w: r.w * SZ, h: r.h * SZ })
+    : (r) => ({ x: 960 + (r.x - wide.x) * wide.z, y: 540 + (r.y - wide.y) * wide.z, w: r.w * wide.z, h: r.h * wide.z });
+  const hbS = toScreen(hbWide);
+  const FR = { x: 300, y: 392, w: 360, h: 360 };
+  tl.set('#frame', { ...css(hbS), opacity: 0, background: 'rgba(34,197,94,.06)' }, 0);
+  tl.set('#frame', { opacity: 1 }, 20.32);
+  tl.set(hb, { a: 0, la: 0 }, 20.32);
+  tl.to('#frame', { ...css(FR), duration: 0.7, ease: 'spring' }, 20.34);
+  tl.to(cam, { ...(STATIC ? {} : { lz: lz(0.44) }), dim: 0.86, blur: 10, duration: 0.9, ease: 'move' }, 20.30);
+  tl.set('#framelbl', { left: FR.x, top: FR.y + FR.h + 12 }, 0);
+  tl.fromTo('#framelbl', { opacity: 0, y: 8 }, { opacity: 1, y: 0, duration: 0.3 }, 20.85);
+  // Jake rises inside the frame and breaks out of the top of it
+  tl.set('#foxclip', { left: FR.x + 3, top: FR.y + 3, width: FR.w - 6, height: FR.h - 6 }, 0);
+  tl.set('#fox', { top: -86, left: -46, width: 446 }, 0);
+  tl.fromTo('#fox', { y: 520 }, { y: 0, duration: 0.75, ease: 'spring' }, 20.58);
+  tl.set('#wm', { top: 418 }, 0);
+  tl.fromTo('.end-i', { opacity: 0, y: 34 }, { opacity: 1, y: 0, duration: 0.6, stagger: 4 * F }, 20.80);
+  tl.to('#end', { scale: 1.025, duration: 4.2, ease: 'none', transformOrigin: '50% 50%' }, 20.90);
+  // ---- ?static: the spotlight follows the action instead of the camera ----
+  if (STATIC) {
+    const notesArea = { x: R.rcol.x - 14, y: R.notes.y - 34, w: R.rcol.w + 28, h: R.notes.h + 74 };
+    const panelBody = { x: R.panel.x, y: R.panel.y, w: R.panel.w, h: R.panel.h };
+    Object.assign(spot, { ...pad(R.vp, 0), a: 1 });
+    const spotTo = (r, at, dur = 0.55) => tl.to(spot, { x: r.x, y: r.y, w: r.w, h: r.h, duration: dur, ease: 'move' }, at);
+    spotTo(panelBody, 2.5);
+    spotTo(notesArea, 4.4);
+    spotTo(pad(R.browser, 0), 6.95);
+    spotTo(notesArea, 8.8);
+    spotTo(panelBody, 10.05);
+    spotTo(pad(R.chat, 6), 11.1);
+    spotTo(pad(R.term, 0), 13.1);
+    spotTo(pad(R.vp, 0), 16.1);
+    spotTo(pad(R.chat, 6), 17.5);
+    tl.to(spot, { a: 0, duration: 0.45, ease: 'exit' }, 19.4);
+  }
+  tl.set({}, {}, DURATION);
+
+  function css(r) { return { left: r.x, top: r.y, width: r.w, height: r.h }; }
+
+  // ---- typing: each string types in over [t0, t1] with an uneven human rhythm ----
+  const typer = (str, t0, t1) => {
+    const w = [...str].map((ch, i) => (i && ' ,.'.includes(str[i - 1]) ? 1.9 : 0.6 + rnd() * 0.8));
+    const sum = w.reduce((a, b) => a + b, 0);
+    let acc = 0;
+    const at = w.map((x) => (acc += x, t0 + (t1 - t0) * acc / sum));
+    return (t) => { let n = 0; while (n < at.length && at[n] <= t) n++; return str.slice(0, n); };
+  };
+  const NOTE1 = 'Orange, bigger, say ‘Add to Chrome’', NOTE2 = 'Say: Just point at it.';
+  const typeN1 = typer(NOTE1, 5.15, 6.85), typeN2 = typer(NOTE2, 9.42, 10.05);
+
+  // ---- apply: everything derived from the tweened state and t ----
+  const world = $('#world'), bg = $('#bg'), cursorEl = $('#cursor'), ripEl = $('#ripple');
+  const hbEl = $('#hb'), hbL = $('#hblbl');
+  const spotEl = $('#spot');
+  let lastLbl = -1;
+  const caret = (t, on) => on && (Math.floor(t * 2) % 2 === 0) ? '<span class="caret"></span>' : '';
+  function apply(t) {
+    const z = Math.exp(cam.lz);
+    const tx = cam.ax - cam.x * z, ty = cam.ay - cam.y * z;
+    world.style.transform = `translate(${tx}px, ${ty}px) scale(${z})`;
+    world.style.filter = cam.blur > 0.05 ? `blur(${cam.blur}px) brightness(${1 - cam.dim})` : '';
+    bg.style.transform = `translate(${(-cam.x * z) * 0.3 % 34}px, ${(-cam.y * z) * 0.3 % 34}px)`;
+
+    if (STATIC) Object.assign(spotEl.style, { left: `${tx + spot.x * z}px`, top: `${ty + spot.y * z}px`,
+      width: `${spot.w * z}px`, height: `${spot.h * z}px`, opacity: spot.a });
+
+    // cursor and ripple, projected from world to screen
+    const sx = tx + cur.x * z, sy = ty + cur.y * z;
+    cursorEl.style.opacity = cur.a;
+    cursorEl.style.transform = `translate(${sx - 3}px, ${sy - 3}px) scale(${1 - 0.14 * cur.press})`;
+    ripEl.style.left = `${sx}px`; ripEl.style.top = `${sy}px`;
+
+    // picker box and its label
+    Object.assign(hbEl.style, { left: `${hb.x}px`, top: `${hb.y}px`, width: `${hb.w}px`, height: `${hb.h}px`, opacity: hb.a,
+      background: `rgba(34, 197, 94, ${hb.fill})` });
+    if (hb.lbl !== lastLbl) { hbL.textContent = LABELS[hb.lbl]; lastLbl = hb.lbl; }
+    const below = hb.y - 30 < R.vp.y && hb.lbl !== 3;
+    hbL.style.left = `${hb.x}px`;
+    hbL.style.top = `${below ? hb.y + hb.h + 6 : hb.y - 30}px`;
+    hbL.style.opacity = hb.la;
+    hbL.style.fontSize = hb.lbl === 3 ? '22px' : '';
+    if (hb.lbl === 3) hbL.style.top = `${hb.y - 46}px`;
+
+    // typed text
+    const n1 = typeN1(t), n2 = typeN2(t);
+    $('#n1').textContent = n1 ? `“${n1}”` : '';
+    $('#n2').textContent = n2 ? `“${n2}”` : '';
+    const noteText = st.ws ? n2 : n1;
+    $('#notestxt').innerHTML = (noteText || (st.notesFocus ? '' : '<span class="ph2">Add a note for Claude…</span>')) + caret(t, st.notesFocus);
+    $('#ncount').textContent = `${noteText.length}/500`;
+    $('#capcount').textContent = `CAPTURES · ${st.caps}`;
+    $('#comptxt').innerHTML = '<span class="ph2">Message lumen-web · ⌘/Ctrl+Enter to send</span>';
+
+    // terminal: tool bullets spin while they run, then turn green
+    const spin = '✻✳✢·✢✳';
+    document.querySelectorAll('#tbody .bul').forEach((b, i) => {
+      const done = i === 0 ? 14.6 : 15.58;
+      b.textContent = t < done ? spin[Math.floor(t * 12) % spin.length] : '⏺';
+      b.style.color = t < done ? '#ff9f0a' : '#4ade80';
+    });
+    $('#blk').style.opacity = st.blk && Math.floor(t * 2) % 2 === 0 ? 1 : 0.15;
+  }
+
+  // ---- camera speed per frame, for the renderer's sub-frame count (camera moves are blurred by averaging) ----
+  const frames = Math.round(DURATION * FPS);
+  const camAt = (t) => { tl.seek(t, false); return { x: cam.x, y: cam.y, z: Math.exp(cam.lz), ax: cam.ax }; };
+  const speed = new Float32Array(frames + 1);
+  let prev = camAt(0);
+  for (let f = 1; f <= frames; f++) {
+    const c = camAt(f / FPS);
+    // how far the screen corners move in one frame
+    let d = 0;
+    for (const [px, py] of [[0, 0], [1920, 0], [0, 1080], [1920, 1080], [960, 540]]) {
+      const wx = (px - prev.ax) / prev.z + prev.x, wy = (py - 540) / prev.z + prev.y;
+      const qx = c.ax + (wx - c.x) * c.z, qy = 540 + (wy - c.y) * c.z;
+      d = Math.max(d, Math.hypot(qx - px, qy - py));
+    }
+    speed[f] = d;
+    prev = c;
+  }
+  tl.seek(0.02, false); tl.seek(0, false);
+  window.blurN = (t) => {
+    const f = Math.min(frames, Math.max(1, Math.round(t * FPS)));
+    const d = Math.max(speed[f], speed[Math.min(frames, f + 1)]) * 0.5;     // the move inside a 180° shutter
+    return d < 6 ? 1 : Math.min(16, Math.ceil(d / 6));
+  };
+
+  window.seek = (t) => { tl.seek(t, false); apply(t); };
+  window.DURATION = DURATION;
+  window.__speed = speed;
+
+  // motion blur drawn by the page for the things that fly across a still camera
+  if (window.MB) {
+    MB.track('#fly1, #fly2, #flybub, #cursor', { pad: 30 });
+    MB.install({});
+  }
+
+  const q = new URLSearchParams(location.search);
+  if (q.has('play')) {
+    const t0 = performance.now();
+    const loop = () => { window.seek(((performance.now() - t0) / 1000) % DURATION); requestAnimationFrame(loop); };
+    loop();
+  } else {
+    window.seek(parseFloat(q.get('t') || '0'));
+  }
+  window.ready = true;
+})();
+</script>
+</body>
+</html>
