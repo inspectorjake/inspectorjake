@@ -14,11 +14,15 @@ const props = defineProps<{
   error: string | null;
   captureCount: number;
   noteCount: number;
+  /** The element picker is running */
+  picking?: boolean;
 }>();
 
 const emit = defineEmits<{
   'update:draft': [value: string];
   send: [];
+  /** Start the element picker, as Pick Element does */
+  pick: [];
 }>();
 
 const listEl = ref<HTMLElement | null>(null);
@@ -240,10 +244,25 @@ function formatTime(ts: number): string {
       <div class="shrink-0 pt-2 pb-4 flex flex-col gap-2">
         <div class="flex flex-wrap items-center gap-2 px-1">
           <span
-            class="text-[12px] font-semibold px-2.5 h-[24px] leading-[24px] rounded-full"
-            :class="captureCount > 0 ? 'text-tint bg-tint/15' : 'text-ios-label-secondary bg-ios-elevated'"
+            v-if="captureCount > 0"
+            class="text-[12px] font-semibold px-2.5 h-[24px] leading-[24px] rounded-full text-tint bg-tint/15"
             data-testid="chat-attachments"
           >{{ attachmentsLabel }}</span>
+          <!-- Nothing attached: clicking it is the same as Pick Element -->
+          <button
+            v-else
+            type="button"
+            class="text-[12px] font-semibold px-2.5 h-[24px] rounded-full flex items-center gap-1 transition-colors"
+            :class="picking ? 'text-tint bg-tint/15 animate-pulse' : 'text-ios-label-secondary bg-ios-elevated hover:text-tint hover:bg-tint/15'"
+            title="Pick an element, or drag a region to capture it"
+            data-testid="chat-attachments"
+            @click.stop="emit('pick')"
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="m4 4 7 17 2.5-7.5L21 11z" />
+            </svg>
+            {{ picking ? 'Click an element…' : attachmentsLabel }}
+          </button>
           <span v-if="error" class="text-[12px] text-ios-red truncate" :title="error" data-testid="chat-error">{{ error }}</span>
         </div>
 

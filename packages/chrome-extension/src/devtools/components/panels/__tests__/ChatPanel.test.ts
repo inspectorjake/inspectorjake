@@ -115,6 +115,18 @@ describe('ChatPanel', () => {
     );
   });
 
+  it('starts the picker from "No captures attached", like Pick Element', async () => {
+    const empty = mountPanel();
+    const chip = empty.get('[data-testid="chat-attachments"]');
+    expect(chip.element.tagName).toBe('BUTTON');
+    await chip.trigger('click');
+    expect(empty.emitted('pick')).toHaveLength(1);
+
+    expect(mountPanel({ picking: true }).get('[data-testid="chat-attachments"]').text()).toBe('Click an element…');
+    // With captures it is a plain summary
+    expect(mountPanel({ captureCount: 1 }).get('[data-testid="chat-attachments"]').element.tagName).toBe('SPAN');
+  });
+
   it('updates the draft as you type', async () => {
     const wrapper = mountPanel();
     await wrapper.get('[data-testid="chat-input"]').setValue('hello');

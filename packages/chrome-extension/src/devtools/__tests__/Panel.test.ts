@@ -87,10 +87,11 @@ const panelStubs = {
     template: '<button class="mode-update" @click="$emit(\'update:computedStylesMode\', \'all\')">mode</button>',
   },
   ChatPanel: {
-    props: ['messages', 'bridgeInfo', 'draft', 'sending', 'error', 'captureCount', 'noteCount'],
-    emits: ['send', 'update:draft'],
+    props: ['messages', 'bridgeInfo', 'draft', 'sending', 'error', 'captureCount', 'noteCount', 'picking'],
+    emits: ['send', 'update:draft', 'pick'],
     template: `
       <div class="chat-panel-stub">
+        <button class="chat-pick" @click="$emit('pick')" />
         <button class="chat-type" @click="$emit('update:draft', 'what is this?')" />
         <button class="chat-send" @click="$emit('send')" />
         <span class="chat-draft">{{ draft }}</span>
@@ -413,5 +414,13 @@ describe('Panel chat view', () => {
     mocks.bridgeInfo.value = null;
     mocks.sessions.value = [];
     expect(mountPanel().getComponent(panelStubs.AppHeader).props('claudeSession')).toBeNull();
+  });
+
+  it('starts the picker when the chat asks for a capture', async () => {
+    mocks.isPicking.value = false;
+    const wrapper = mountPanel();
+    await wrapper.get('.view-chat').trigger('click');
+    await wrapper.get('.chat-pick').trigger('click');
+    expect(mocks.startElementPicker).toHaveBeenCalledTimes(1);
   });
 });
