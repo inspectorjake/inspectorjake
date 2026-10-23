@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Inspector Jake MCP",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Inspect web pages via MCP - let AI agents see what you see in DevTools",
   "permissions": [
     "activeTab",

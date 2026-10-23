@@ -53,6 +53,30 @@ describe('CapturesSidebar', () => {
     expect(wrapper.emitted('hover-selection-end')).toHaveLength(1);
   });
 
+  it('starts the picker from the empty state, like Pick Element', async () => {
+    const mountEmpty = (isCoolingDown = false) =>
+      shallowMount(CapturesSidebar, {
+        props: {
+          selections: [],
+          expandedId: null,
+          isConnected: true,
+          sessions: [],
+          scanning: false,
+          connecting: false,
+          isPicking: false,
+          isCoolingDown,
+        },
+      });
+
+    const wrapper = mountEmpty();
+    const empty = wrapper.get('[data-testid="empty-captures"]');
+    expect(empty.text()).toContain('No captures yet');
+    await empty.trigger('click');
+    expect(wrapper.emitted('pick')).toHaveLength(1);
+
+    expect(mountEmpty(true).get('[data-testid="empty-captures"]').attributes('disabled')).toBeDefined();
+  });
+
   it('names discovered servers after their Claude Code sessions', () => {
     const wrapper = shallowMount(CapturesSidebar, {
       props: {

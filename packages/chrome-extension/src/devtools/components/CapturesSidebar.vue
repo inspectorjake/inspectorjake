@@ -84,10 +84,14 @@ const emit = defineEmits<{
           />
         </div>
 
-        <!-- Empty state -->
-        <div
+        <!-- Empty state: clicking it is the same as Pick Element -->
+        <button
           v-else-if="!isPicking"
-          class="rounded-[14px] bg-ios-elevated px-4 py-6 flex flex-col items-center text-center gap-1.5"
+          type="button"
+          class="rounded-[14px] bg-ios-elevated hover:bg-ios-fill transition-colors px-4 py-6 flex flex-col items-center text-center gap-1.5 disabled:opacity-40"
+          :disabled="isCoolingDown"
+          data-testid="empty-captures"
+          @click.stop="emit('pick')"
         >
           <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-ios-label-tertiary mb-1" aria-hidden="true">
             <circle cx="11" cy="11" r="8" />
@@ -95,9 +99,9 @@ const emit = defineEmits<{
             <path d="M11 8v6" />
             <path d="M8 11h6" />
           </svg>
-          <p class="text-[15px] font-semibold text-ios-label">No captures yet</p>
-          <p class="text-[13px] text-ios-label-secondary">Pick an element, or drag a region to capture it.</p>
-        </div>
+          <span class="text-[15px] font-semibold text-ios-label">No captures yet</span>
+          <span class="text-[13px] text-ios-label-secondary">Pick an element, or drag a region to capture it.</span>
+        </button>
 
         <!-- Pick -->
         <button

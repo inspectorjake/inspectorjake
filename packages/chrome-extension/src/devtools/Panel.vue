@@ -387,7 +387,9 @@ onUnmounted(() => {
         :error="chatError"
         :capture-count="selections.length"
         :note-count="noteCount"
+        :picking="isPicking"
         @send="handleChatSend"
+        @pick="handlePickerClick"
       />
 
       <!-- Not connected -->
